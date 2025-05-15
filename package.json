@@ -1,0 +1,18 @@
+{
+  "name": "pipegpu.graph.frame",
+  "version": "0.0.0",
+  "description": "webgpu based frame graph",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "vite": "^6.3.5",
+    "@webgpu/types": "^0.1.60",
+    "pipegpu": "^0.0.2"
+  }
+}
