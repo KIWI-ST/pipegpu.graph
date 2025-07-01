@@ -2,5 +2,10 @@
  * pipegpu plugin
  * - frame graph
  */
-export * from './graph/BaseGraph.ts'
-export * from './graph/OrderedGraph.ts'
+export * from './renderGraph/BaseGraph.ts'
+export * from './renderGraph/OrderedGraph.ts'
+
+/**
+ * pipegpu plugin
+ * - shader graph
+ */
