@@ -1,5 +1,5 @@
 {
-  "name": "pipegpu.graph.frame",
+  "name": "pipegpu.graph",
   "version": "0.0.0",
   "description": "webgpu based frame graph",
   "main": "index.ts",
