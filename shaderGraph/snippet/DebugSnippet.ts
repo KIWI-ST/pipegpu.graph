@@ -39,7 +39,7 @@ class DebugSnippet extends BaseSnippet {
                 g: f32,
                 b: f32,
                 a: f32,
-            }
+            };
         
         `;
         this.shaderCode.variableName = `debug_${this.snippetStatsID}`;

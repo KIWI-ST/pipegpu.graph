@@ -47,8 +47,8 @@ type SnippetFormat =
     'depth_texture_snippet' |                   //
     'fragment_desc_snippet' |                   //
     'vertex_snippet' |                          //
-    'view_projection_snippet' |
-    'view_snippet' |
+    'view_projection_snippet' |                 //
+    'view_snippet' |                            //
     'instance_desc_snippet' |
     'mesh_desc_snippet' |
     'material_phone_desc_snippet' |
@@ -129,9 +129,7 @@ abstract class BaseSnippet {
     getVariableName = (): string => {
         return this.shaderCode.variableName;
     }
-
 }
-
 
 export {
     type SnippetFormat,

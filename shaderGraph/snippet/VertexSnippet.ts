@@ -57,7 +57,7 @@ class VertexSnippet extends BaseSnippet {
             nz:f32,
             u:f32,
             v:f32,
-        }
+        };
         
         `;
         this.shaderCode.variableName = `vertex_arr_${this.snippetStatsID}`;
