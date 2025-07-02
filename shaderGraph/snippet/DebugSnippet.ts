@@ -14,6 +14,9 @@ interface IDebug {
     a: number,
 }
 
+/**
+ * DebugSnippet is a shader snippet that defines a structure for debugging data.
+ */
 class DebugSnippet extends BaseSnippet {
 
     constructor(compiler: Compiler) {
@@ -21,7 +24,7 @@ class DebugSnippet extends BaseSnippet {
     }
 
     initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
-        this.shaderCode.structName = "Debug";
+        this.shaderCode.structName = "DEBUG";
         this.shaderCode.structCode = `
 
             struct ${this.shaderCode.structName}

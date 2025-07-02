@@ -12,7 +12,7 @@
   "license": "ISC",
   "devDependencies": {
     "@webgpu/types": "^0.1.60",
-    "pipegpu": "^0.0.7",
+    "pipegpu": "^0.0.8",
     "vite": "^6.3.5"
   },
   "dependencies": {
