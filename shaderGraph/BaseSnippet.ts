@@ -49,10 +49,10 @@ type SnippetFormat =
     'vertex_snippet' |                          //
     'view_projection_snippet' |                 //
     'view_snippet' |                            //
-    'instance_desc_snippet' |
-    'mesh_desc_snippet' |
-    'material_phone_desc_snippet' |
-    'storage_array_u32_snippet' |
+    'instance_desc_snippet' |                   //
+    'mesh_desc_snippet' |                       //
+    'material_phone_desc_snippet' |             //
+    'storage_array_u32_snippet' |               //
     'storage_index_snippet' |
     'point_light_desc_snippet' |
     'texture_2d_array_snippet' |

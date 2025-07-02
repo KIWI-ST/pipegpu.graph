@@ -44,14 +44,14 @@ npm install pipegpu.graph --save-dev
 - [x] FragmentDescSnippet 
 - [ ] IndexedIndirectSnippet 
 - [ ] IndirectSnippet 
-- [ ] InstanceDescSnippet 
+- [x] InstanceDescSnippet 
 - [ ] MaterialPBRSnippet 
-- [ ] MaterialPhongSnippet 
-- [ ] MeshDescSnippet 
+- [x] MaterialPhongSnippet 
+- [x] MeshDescSnippet 
 - [ ] MeshletSnippet 
 - [ ] PointLightSnippet 
 - [ ] StorageArrayAtomicU32Snippet 
-- [ ] StorageArrayU32Snippet 
+- [x] StorageArrayU32Snippet 
 - [ ] StorageAtomicU32Snippet 
 - [ ] StorageI32Snippet 
 - [ ] StorageIndexSnippet 
