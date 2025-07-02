@@ -103,6 +103,12 @@ abstract class BaseSnippet {
         this.shaderCode = { structCode: '', variableCode: '', variableName: '', structName: '', requireExtentCode: '' };
     }
 
+    /**
+     * 
+     * @param groupIndex 
+     * @param bindingIndex 
+     * @param shaderCodeFormat 
+     */
     abstract initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode;
 
     /**
