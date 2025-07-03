@@ -20,7 +20,7 @@ class StorageArrayU32Snippet extends BaseSnippet {
      * @param shaderCodeFormat 
      * @returns 
      */
-    initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `u32`;
         this.shaderCode.variableName = `storage_arr_u32_${this.snippetStatsID}`;
         if ('renderer' === shaderCodeFormat) {

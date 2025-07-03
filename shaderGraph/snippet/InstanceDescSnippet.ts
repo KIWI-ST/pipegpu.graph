@@ -38,7 +38,7 @@ class InstanceDescSnippet extends BaseSnippet {
      * @param bindingIndex 
      * @param shaderCodeFormat 
      */
-    initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `INSTANCEDESC`;
         this.shaderCode.structCode = `
         
