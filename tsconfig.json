@@ -11,8 +11,10 @@
         "declaration": true,
         "outDir": "dist",
         "skipLibCheck": true,
+        "allowJs": true,
+        "esModuleInterop": true,
         /* Bundler mode */
-        "moduleResolution": "bundler",
+        "moduleResolution": "node",
         "allowImportingTsExtensions": true,
         "verbatimModuleSyntax": true,
         "moduleDetection": "force",

@@ -8,7 +8,15 @@ import {
     Uniforms
 } from 'pipegpu';
 
+import { fetchKTX } from './uitl/ktx';
+
 (async () => {
+
+
+    const s = await fetchKTX('/examples/assets/container.ktx', "");
+
+
+
     const ctx: Context = new Context({
         selector: "pad",
         width: 800,

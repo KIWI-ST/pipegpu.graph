@@ -12,10 +12,11 @@
   "license": "ISC",
   "devDependencies": {
     "@webgpu/types": "^0.1.60",
-    "pipegpu": "^0.0.8",
+    "ktx-parse": "^1.0.1",
     "vite": "^6.3.5"
   },
   "dependencies": {
-    "kiwi.matrix": "^0.6.4"
+    "kiwi.matrix": "^0.6.4",
+    "pipegpu": "^0.0.9"
   }
 }

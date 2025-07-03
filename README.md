@@ -1,5 +1,11 @@
 webgpu based frame graph
 
+## examples
+> libktx
+```
+https://github.khronos.org/KTX-Software/ktxjswrappers/libktx_js.html
+```
+
 # 
 ```cmd
 npm install pipegpu.graph --save-dev
