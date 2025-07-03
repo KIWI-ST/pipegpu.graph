@@ -31,7 +31,7 @@ class DepthTextureSnippet extends BaseSnippet {
      * @param shaderCodeFormat The format of the shader code, e.g., renderer or computer.
      * @returns An instance of IShaderCode containing the initialized shader code.
      */
-    initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `texture_depth_2d`;
         this.shaderCode.variableName = `depth_texture_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `

@@ -23,7 +23,7 @@ class DebugSnippet extends BaseSnippet {
         super(compiler, 'debug_snippet');
     }
 
-    initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = "DEBUG";
         this.shaderCode.structCode = `
 

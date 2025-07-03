@@ -19,7 +19,7 @@ class StorageIndexSnippet extends BaseSnippet {
      * @param bindingIndex 
      * @param shaderCodeFormat 
      */
-    initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = "u32";
         this.shaderCode.variableName = `storage_index_buffer_${this.snippetStatsID}`;
         if ('computer' === shaderCodeFormat) {

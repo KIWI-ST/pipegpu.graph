@@ -64,7 +64,7 @@ class ViewSnippet extends BaseSnippet {
      * @param bindingIndex 
      * @param shaderCodeFormat 
      */
-    initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `VIEW`;
         this.shaderCode.structCode = `
         

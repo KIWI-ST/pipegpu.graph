@@ -43,7 +43,7 @@ class VertexSnippet extends BaseSnippet {
      * @param _shaderCodeFormat 
      * @returns 
      */
-    initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `VERTEX`;
         this.shaderCode.structCode = `
         

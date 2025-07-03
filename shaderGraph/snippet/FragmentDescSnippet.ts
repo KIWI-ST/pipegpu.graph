@@ -10,7 +10,7 @@ class FragmentDescSnippet extends BaseSnippet {
         super(compiler, 'fragment_desc_snippet')
     }
 
-    initShaderCode(_groupIndex: number, _bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(_groupIndex: number, _bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         if (_shaderCodeFormat !== 'renderer') {
             throw new Error("FragmentDescSnippet can only be used with renderer shader code format.");
         }

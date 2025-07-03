@@ -20,7 +20,7 @@ class Texture2DArraySnippet extends BaseSnippet {
      * @param shaderCodeFormat 
      * @returns 
      */
-    initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
 
         this.shaderCode.structName = `texture_2d_array<f32>`;
         this.shaderCode.variableName = `texture_2d_arr_${this.snippetStatsID}`;

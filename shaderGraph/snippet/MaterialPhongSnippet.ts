@@ -40,7 +40,7 @@ class MaterialPhongDescSnippet extends BaseSnippet {
      * @param bindingIndex 
      * @param shaderCodeFormat 
      */
-    initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `MATERIAL_PHONG_DESC`;
         this.shaderCode.structCode = `
         

@@ -20,7 +20,7 @@ class TextureSamplerSnippet extends BaseSnippet {
      * @param _shaderCodeFormat 
      * @returns 
      */
-    initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `sampler`;
         this.shaderCode.variableName = `texture_sampler_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `

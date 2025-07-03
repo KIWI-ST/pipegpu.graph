@@ -26,7 +26,7 @@ class PointLightSnippet extends BaseSnippet {
      * @param shaderCodeFormat 
      * @returns 
      */
-    initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `POINT_LIGHT`;
         this.shaderCode.structCode = `
         
