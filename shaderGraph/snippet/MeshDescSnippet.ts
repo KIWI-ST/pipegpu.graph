@@ -33,7 +33,7 @@ class MeshDescSnippet extends BaseSnippet {
      * @returns 
      */
     initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
-        this.shaderCode.structName = `MESHDESC`;
+        this.shaderCode.structName = `MESH_DESC`;
         this.shaderCode.structCode = `
         
         struct ${this.shaderCode.structName}
