@@ -8,10 +8,10 @@ import {
     Uniforms
 } from 'pipegpu';
 
-import { fetchKTX } from './util/ktx';
+import { fetchKTX2AsBc7RGBA } from './util/ktx';
 
 (async () => {
-    const s = await fetchKTX('/examples/assets/container.ktx', "");
+    const s = await fetchKTX2AsBc7RGBA('/examples/assets/container.ktx', "");
     console.log(s);
 
 

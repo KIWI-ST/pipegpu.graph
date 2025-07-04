@@ -1,7 +1,14 @@
-const canvas = document.createElement('canvas');
-const gl = canvas.getContext('webgl2');
+import { LoadLIBKTX } from '../libktx/libktx_wrapper'
 
-let ktx: any;
+type textureType = 'BC7_RGBA';
+
+interface IKTXPack {
+    key: string,
+    data: Uint8Array,
+    width: number,
+    height: number,
+    t: textureType,
+}
 
 /**
  *
@@ -12,26 +19,35 @@ let ktx: any;
  * @returns Promise<KTX2Container>
  *
  */
-const fetchKTX = async (uri: string, key?: string): Promise<string> => {
+const fetchKTX2AsBc7RGBA = async (uri: string, key: string): Promise<IKTXPack> => {
     try {
-        ktx = ktx || await createKtxModule();
+        const ktx = await LoadLIBKTX();
         const response = await fetch(uri);
         if (!response.ok) {
-            throw new Error(`[E][fetchKTX ] KTX load failed, response code: ${response.status}`);
+            throw new Error(`[E][fetchKTX ] ktx2 load failed, response code: ${response.status}`);
         }
         const arrayBuffer = await response.arrayBuffer();
         const ktxdata = new Uint8Array(arrayBuffer);
         const ktexture = new ktx.texture(ktxdata);
-        // ktexture.transcodeBasis(trans)
-        console.log(ktx.transcode_fmt.BC7_RGBA);
-
-
-        return ktexture;
+        if (ktexture.transcodeBasis(ktx.transcode_fmt.BC7_RGBA, 0) === ktx.error_code.SUCCESS) {
+            const bufferView = ktexture.getImage(0, 0, 0);
+            const u8arr = new Uint8Array(bufferView);
+            return {
+                key: key,
+                data: u8arr,
+                width: ktexture.baseWidth,
+                height: ktexture.baseHeight,
+                t: 'BC7_RGBA'
+            };
+        } else {
+            throw new Error(`[E][fetchKTX ] ktx2 load failed, transcodeBasis error.`);
+        }
     } catch (error) {
-        throw new Error(`[E][fetchKTX ] KTX load failed, response code: ${error}`);
+        throw new Error(`[E][fetchKTX ] ktx2 load failed, response code: ${error}`);
     }
 };
 
 export {
-    fetchKTX
+    fetchKTX2AsBc7RGBA
 }
+
