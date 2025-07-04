@@ -1,7 +1,13 @@
 import { LoadLIBKTX } from '../libktx/libktx_wrapper'
 
+/**
+ * 
+ */
 type textureType = 'BC7_RGBA';
 
+/**
+ * 
+ */
 interface IKTXPack {
     key: string,
     data: Uint8Array,
@@ -19,7 +25,7 @@ interface IKTXPack {
  * @returns Promise<KTX2Container>
  *
  */
-const fetchKTX2AsBc7RGBA = async (uri: string, key: string): Promise<IKTXPack> => {
+const fetchKTX2AsBc7RGBA = async (uri: string, key: string = ""): Promise<IKTXPack> => {
     try {
         const ktx = await LoadLIBKTX();
         const response = await fetch(uri);
@@ -48,6 +54,8 @@ const fetchKTX2AsBc7RGBA = async (uri: string, key: string): Promise<IKTXPack> =
 };
 
 export {
+    type textureType,
+    type IKTXPack,
     fetchKTX2AsBc7RGBA
 }
 

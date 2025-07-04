@@ -8,12 +8,21 @@ import {
     Uniforms
 } from 'pipegpu';
 
-import { fetchKTX2AsBc7RGBA } from './util/ktx';
+import { OrderedGraph } from '../index'
+
+import { fetchKTX2AsBc7RGBA, type IKTXPack } from './util/fetchKTX';
+import { fetchHDMF } from './util/fetchHDMF';
 
 (async () => {
-    const s = await fetchKTX2AsBc7RGBA('/examples/assets/container.ktx', "");
-    console.log(s);
 
+    {
+        const s = await fetchHDMF('/example/asset/hdmf/004bec5f43a0f32f56d89857393c6602cd8538452733b934705ddec5f235e1ff.hdmf');
+    }
+
+    {
+        const ktxPack: IKTXPack = await fetchKTX2AsBc7RGBA('/example/asset/container.ktx');
+        console.log(ktxPack);
+    }
 
     const ctx: Context = new Context({
         selector: "pad",
@@ -99,24 +108,22 @@ import { fetchKTX2AsBc7RGBA } from './util/ktx';
     desc.uniforms?.assign("uColorB", uniformBufferB);
 
     const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
-    // const graph: OrderedGraph = new OrderedGraph(ctx);
-    // const renderLoop = () => {
-    //     graph.append(holder);
-    //     graph.build();
-    //     requestAnimationFrame(renderLoop);
-    // };
-    // requestAnimationFrame(renderLoop);
-
-
+    const graph: OrderedGraph = new OrderedGraph(ctx);
     const renderLoop = () => {
-        ctx.refreshFrameResource();
-        const encoder = ctx.getCommandEncoder();
-        holder.build(encoder);
-        ctx.submitFrameResource();
+        graph.append(holder);
+        graph.build();
         requestAnimationFrame(renderLoop);
     };
     requestAnimationFrame(renderLoop);
 
+    // const renderLoop = () => {
+    //     ctx.refreshFrameResource();
+    //     const encoder = ctx.getCommandEncoder();
+    //     holder.build(encoder);
+    //     ctx.submitFrameResource();
+    //     requestAnimationFrame(renderLoop);
+    // };
+    // requestAnimationFrame(renderLoop);
 })();
 
 

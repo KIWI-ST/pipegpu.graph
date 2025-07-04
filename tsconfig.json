@@ -31,7 +31,7 @@
         ]
     },
     "include": [
-        "examples/**/*.*",
+        "example/**/*.*",
         "renderGraph",
         "shaderGraph"
     ]
