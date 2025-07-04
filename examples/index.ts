@@ -11,10 +11,8 @@ import {
 import { fetchKTX } from './uitl/ktx';
 
 (async () => {
-
-
     const s = await fetchKTX('/examples/assets/container.ktx', "");
-
+    console.log(s);
 
 
     const ctx: Context = new Context({
