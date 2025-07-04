@@ -1,7 +1,7 @@
 const canvas = document.createElement('canvas');
 const gl = canvas.getContext('webgl2');
 
-let ktx;
+let ktx: any;
 
 /**
  *
@@ -23,7 +23,7 @@ const fetchKTX = async (uri: string, key?: string): Promise<string> => {
         const ktxdata = new Uint8Array(arrayBuffer);
         const ktexture = new ktx.texture(ktxdata);
         // ktexture.transcodeBasis(trans)
-        console.log(ktx.transcode_fmt);
+        console.log(ktx.transcode_fmt.BC7_RGBA);
 
 
         return ktexture;

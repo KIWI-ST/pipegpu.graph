@@ -8,7 +8,7 @@ import {
     Uniforms
 } from 'pipegpu';
 
-import { fetchKTX } from './uitl/ktx';
+import { fetchKTX } from './util/ktx';
 
 (async () => {
     const s = await fetchKTX('/examples/assets/container.ktx', "");
