@@ -8,22 +8,11 @@ import {
     Uniforms
 } from 'pipegpu';
 
-import { OrderedGraph } from '../index'
-import { fetchKTX2AsBc7RGBA, type IKTXPack } from './util/fetchKTX';
-import { fetchHDMF, type IMeshDataPack } from './util/fetchHDMF';
-import { PSEUDOMERCATOR } from './geo/Ellipsoid';
-import { GeodeticCoordinate } from './geo/GeodeticCoordinate';
-import { GLMatrix } from 'kiwi.matrix';
+import { OrderedGraph } from '../../index'
+import { fetchKTX2AsBc7RGBA, type IKTXPack } from '../util/fetchKTX';
+import { fetchHDMF, type IMeshDataPack } from '../util/fetchHDMF';
 
 (async () => {
-
-    {
-        const latitude: number = 33.0;
-        const longitude: number = 114.0;
-        const geoLocation: GeodeticCoordinate = new GeodeticCoordinate(longitude, latitude);
-        const viewRectangle3DCenter = PSEUDOMERCATOR.geographicToSpace(geoLocation);
-        console.log(viewRectangle3DCenter);
-    }
 
     {
         const meshDataPack0: IMeshDataPack = await fetchHDMF('/example/asset/hdmf/dd72915d284fd06746be4a54e0883ee29dcfd8383f1dc113b1537c2e530b39cc.hdmf');

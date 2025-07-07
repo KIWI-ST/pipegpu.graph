@@ -1,6 +1,6 @@
 {
   "name": "pipegpu.graph",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "webgpu based frame graph",
   "main": "index.ts",
   "scripts": {
@@ -12,7 +12,6 @@
   "license": "ISC",
   "devDependencies": {
     "@webgpu/types": "^0.1.60",
-    "ktx-parse": "^1.0.1",
     "vite": "^6.3.5"
   },
   "dependencies": {

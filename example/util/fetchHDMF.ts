@@ -1,6 +1,25 @@
 /**
  * 
  */
+const MATERIAL_TYPE_MAP: Map<number, string> = new Map();
+
+MATERIAL_TYPE_MAP.set(0 << 8 | 0, `kMaterialPBR`);
+MATERIAL_TYPE_MAP.set(0 << 8 | 1, `kMaterialPBR1`);
+MATERIAL_TYPE_MAP.set(0 << 8 | 2, `kMaterialPBR2`);
+MATERIAL_TYPE_MAP.set(0 << 8 | 3, `kMaterialPBR3`);
+MATERIAL_TYPE_MAP.set(1 << 8 | 0, `kMaterialPhong`);
+MATERIAL_TYPE_MAP.set(1 << 8 | 1, `kMaterialPhong1`);
+MATERIAL_TYPE_MAP.set(1 << 8 | 2, `kMaterialPhong2`);
+MATERIAL_TYPE_MAP.set(1 << 8 | 3, `kMaterialPhong3`);
+MATERIAL_TYPE_MAP.set(1 << 8 | 4, `kMaterialPhong4`);
+MATERIAL_TYPE_MAP.set(1 << 8 | 5, `kMaterialPhong5`);
+MATERIAL_TYPE_MAP.set(1 << 8 | 6, `kMaterialPhong6`);
+MATERIAL_TYPE_MAP.set(1 << 8 | 7, `kMaterialPhong7`);
+MATERIAL_TYPE_MAP.set(1 << 8 | 8, `kMaterialPhong8`);
+
+/**
+ * 
+ */
 interface IMeshlet {
     selfParentBounds: Float32Array,
     indices: Uint32Array,
@@ -9,7 +28,7 @@ interface IMeshlet {
 /**
  * 
  */
-interface IMeshData {
+interface IMeshDataPack {
     key: string,
     vertices: Float32Array,
     meshlets: Array<IMeshlet>,
@@ -20,7 +39,7 @@ interface IMeshData {
  * @param uri 
  * @param _key 
  */
-const fetchHDMF = async (uri: string, key: string = ""): Promise<IMeshData> => {
+const fetchHDMF = async (uri: string, key: string = ""): Promise<IMeshDataPack> => {
     const response = await fetch(uri);
     if (!response.ok) {
         throw new Error(`[E][fetchHDMF ] .hdmf load failed, response code: ${response.status}`);
@@ -69,6 +88,6 @@ const fetchHDMF = async (uri: string, key: string = ""): Promise<IMeshData> => {
 
 
 export {
-    type IMeshData,
+    type IMeshDataPack,
     fetchHDMF
 }
