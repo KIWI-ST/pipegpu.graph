@@ -1,37 +1,26 @@
 /**
  * 
  */
-interface ILodBound {
-    centerX: number,
-    centerY: number,
-    centerZ: number,
-    radius: number,
-    error: number
-}
-
-/**
- * 
- */
 interface IMeshlet {
-    self: ILodBound,
-    parent: ILodBound,
-    indices: Uint32Array
+    selfParentBounds: Float32Array,
+    indices: Uint32Array,
 }
 
 /**
  * 
  */
-interface IMesh {
-    vertices: Float32Array;
-    meshlets: IMeshlet[]
+interface IMeshData {
+    key: string,
+    vertices: Float32Array,
+    meshlets: Array<IMeshlet>,
 }
 
 /**
  * 
  * @param uri 
- * @param key 
+ * @param _key 
  */
-const fetchHDMF = async (uri: string, key: string = ""): Promise<IMesh> => {
+const fetchHDMF = async (uri: string, key: string = ""): Promise<IMeshData> => {
     const response = await fetch(uri);
     if (!response.ok) {
         throw new Error(`[E][fetchHDMF ] .hdmf load failed, response code: ${response.status}`);
@@ -50,30 +39,36 @@ const fetchHDMF = async (uri: string, key: string = ""): Promise<IMesh> => {
     }
     const meshletBoundLength = 5 * 4 * 2;
 
-    // bufferview [0] must vertices
+    // meshlet array data
+    const meshlets: Array<IMeshlet> = [];
+    // bufferview [0] must vertices.
     const vertices: Float32Array = new Float32Array(uint8Array.buffer, 0, json.bufferViews[0].byteLength / 4);
+    // bufferview [1] - [length] must meshlet pack array.
+    for (let k = 1; k < json.bufferViews.length; k++) {
+        const bufferView = json.bufferViews[k];
+        const offset = bufferView.byteOffset || 0;
+        // meshlet bounds, order:
+        // - self meshlet bound center x/y/z, radius, error
+        // - parent meshlet bound center x/y/z, radius, error
+        // [x, y, z, radius, error, x, y, z, radius, error]
+        const meshletBounds: Float32Array = new Float32Array(uint8Array.buffer, offset, meshletBoundLength / 4);    // float
+        const meshletIndex: Uint32Array = new Uint32Array(uint8Array.buffer, offset + meshletBoundLength, (bufferView.byteLength - meshletBoundLength) / 4);    // uint32
+        const meshlet: IMeshlet = {
+            selfParentBounds: meshletBounds,
+            indices: meshletIndex
+        };
+        meshlets.push(meshlet);
+    }
 
-
-
-
-
-    // const vertices: Float32Array = new Float32Array(uint8Array.buffer, 0, 2016 / 4);
-    const meshletBounds: Float32Array = new Float32Array(uint8Array.buffer, 2016, meshletBoundLength / 4);
-    const meshletIndex: Uint32Array = new Uint32Array(uint8Array.buffer, 2016 + meshletBoundLength, (808 - meshletBoundLength) / 4);
-
-    console.log(vertices);
-    console.log(meshletBounds);
-    console.log(meshletIndex);
-    // const binaryString = atob(json.buffers[0].uri);
-    // const len = binaryString.length;
-    // const uint8Array = new Uint8Array(len);
-    // for (let i = 0; i < len; i++) {
-    //     uint8Array[i] = binaryString.charCodeAt(i);
-    // }
-    // console.log(uint8Array);
+    return {
+        key: key,
+        vertices: vertices,
+        meshlets: meshlets
+    }
 }
 
 
 export {
+    type IMeshData,
     fetchHDMF
 }

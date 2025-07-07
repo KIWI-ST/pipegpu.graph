@@ -11,12 +11,13 @@ import {
 import { OrderedGraph } from '../index'
 
 import { fetchKTX2AsBc7RGBA, type IKTXPack } from './util/fetchKTX';
-import { fetchHDMF } from './util/fetchHDMF';
+import { fetchHDMF, type IMeshData } from './util/fetchHDMF';
 
 (async () => {
 
     {
-        const s = await fetchHDMF('/example/asset/hdmf/004bec5f43a0f32f56d89857393c6602cd8538452733b934705ddec5f235e1ff.hdmf');
+        const meshData: IMeshData = await fetchHDMF('/example/asset/hdmf/dd72915d284fd06746be4a54e0883ee29dcfd8383f1dc113b1537c2e530b39cc.hdmf');
+        console.log(meshData);
     }
 
     {
