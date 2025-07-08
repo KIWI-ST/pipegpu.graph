@@ -1,9 +1,10 @@
 import { Vec3 } from "kiwi.matrix"
 
 /**
- * 
+ * https://carmencincotti.com/2022-04-25/cameras-theory-webgpu/
  */
 abstract class BaseCamera {
+
     /**
      * 
      */
@@ -33,6 +34,7 @@ abstract class BaseCamera {
         this.position.set(v.x, v.y, v.z);
         this.refresh();
     }
+
 }
 
 export {

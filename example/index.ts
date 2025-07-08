@@ -13,7 +13,6 @@ import { fetchKTX2AsBc7RGBA, type IKTXPack } from './util/fetchKTX';
 import { fetchHDMF, type IMeshDataPack } from './util/fetchHDMF';
 import { PSEUDOMERCATOR } from './geo/Ellipsoid';
 import { GeodeticCoordinate } from './geo/GeodeticCoordinate';
-import { GLMatrix } from 'kiwi.matrix';
 
 (async () => {
 
