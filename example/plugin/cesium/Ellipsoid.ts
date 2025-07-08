@@ -2,7 +2,7 @@
  * ref:
  * https://github.com/KIWI-ST/geosketchpad/blob/master/src/core/Ellipsoid.ts
  */
-import { GLMatrix, Vec3 } from 'kiwi.matrix';
+import { GLMatrix, Vec3 } from 'pipegpu.matrix';
 import { GeodeticCoordinate } from './GeodeticCoordinate';
 
 const EPSILON1 = 0.1;

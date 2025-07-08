@@ -1,4 +1,4 @@
-import { LoadLIBKTX } from '../libktx/libktx_wrapper'
+import { LoadLIBKTX } from '../plugin/libktx/libktx_wrapper'
 
 /**
  * 

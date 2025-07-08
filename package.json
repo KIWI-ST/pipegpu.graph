@@ -12,10 +12,11 @@
   "license": "ISC",
   "devDependencies": {
     "@webgpu/types": "^0.1.60",
+    "cesium": "^1.131.0",
     "gl-matrix": "^3.4.3",
-    "vite": "^6.3.5"
-  },
-  "dependencies": {
-    "pipegpu": "^0.0.9"
+    "pipegpu": "^0.0.10",
+    "pipegpu.matrix": "^0.6.6",
+    "vite": "^6.3.5",
+    "vite-plugin-static-copy": "^3.1.0"
   }
 }
