@@ -72,7 +72,7 @@ abstract class RenderComponent extends BaseComponent {
     }
 
     override build(): string {
-
+        return "";
     }
 }
 

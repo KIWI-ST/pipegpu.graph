@@ -1,6 +1,6 @@
 import { Compiler, UniformBuffer } from "pipegpu";
-import { BaseSnippet, IShaderCode, ShaderCodeFormat } from "../BaseSnippet";
-import { Handle1D } from "pipegpu/src/res/buffer/BaseBuffer";
+import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
+import { type Handle1D } from "pipegpu/src/res/buffer/BaseBuffer";
 
 /**
  * 

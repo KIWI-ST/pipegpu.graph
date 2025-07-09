@@ -1,6 +1,6 @@
-import { Mat4 } from "kiwi.matrix";
-import { BaseSnippet, IShaderCode, ShaderCodeFormat } from "../BaseSnippet";
-import { Compiler, StorageBuffer, TypedArray2DFormat } from "pipegpu";
+import { Mat4 } from "pipegpu.matrix";
+import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
+import { Compiler, StorageBuffer, type TypedArray2DFormat } from "pipegpu";
 
 /**
  * 

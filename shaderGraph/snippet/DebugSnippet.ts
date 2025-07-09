@@ -1,4 +1,4 @@
-import { BaseSnippet, IShaderCode, ShaderCodeFormat } from "../BaseSnippet"
+import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet"
 import { Compiler, MapBuffer } from "pipegpu";
 
 interface IDebug {

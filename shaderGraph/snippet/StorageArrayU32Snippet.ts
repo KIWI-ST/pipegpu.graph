@@ -1,5 +1,5 @@
 import { Compiler } from "pipegpu";
-import { BaseSnippet, IShaderCode, ShaderCodeFormat } from "../BaseSnippet";
+import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
 
 /**
  * 

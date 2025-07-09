@@ -1,5 +1,5 @@
-import { Compiler, StorageBuffer, TypedArray2DFormat } from "pipegpu";
-import { BaseSnippet, IShaderCode, ShaderCodeFormat } from "../BaseSnippet";
+import { Compiler, StorageBuffer, type TypedArray2DFormat } from "pipegpu";
+import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
 
 /**
  * 

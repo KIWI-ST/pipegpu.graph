@@ -1,5 +1,5 @@
 import { Compiler, DepthStencilAttachment, Texture2D } from "pipegpu";
-import { BaseSnippet, IShaderCode, ShaderCodeFormat } from "../BaseSnippet";
+import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
 
 /**
  * DepthTextureSnippet class extends BaseSnippet to handle depth texture snippets.

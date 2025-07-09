@@ -1,8 +1,7 @@
-
-import { Mat4 } from 'kiwi.matrix'
-import { BaseSnippet, IShaderCode, ShaderCodeFormat } from '../BaseSnippet';
 import { Compiler, UniformBuffer } from 'pipegpu';
-import { Handle1D } from 'pipegpu/src/res/buffer/BaseBuffer';
+import { Mat4 } from 'pipegpu.matrix';
+import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from '../BaseSnippet';
+import { type Handle1D } from 'pipegpu/src/res/buffer/BaseBuffer';
 
 interface IVIEWPROJECTION {
     viewMatrix: Mat4;

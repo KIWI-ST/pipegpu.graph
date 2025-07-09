@@ -1,5 +1,5 @@
 import type { Compiler, Context } from "pipegpu";
-import { RenderComponent } from "../Component";
+import { RenderComponent } from "../BaseComponent";
 import type { DebugSnippet } from "../snippet/DebugSnippet";
 import type { FragmentDescSnippet } from "../snippet/FragmentDescSnippet";
 import type { VertexSnippet } from "../snippet/VertexSnippet";

@@ -1,6 +1,6 @@
 import { Compiler } from "pipegpu";
-import { BaseSnippet, IShaderCode, ShaderCodeFormat } from "../BaseSnippet";
-import { Vec3 } from "kiwi.matrix";
+import { Vec3 } from "pipegpu.matrix";
+import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
 
 interface IPointLight {
     position: Vec3,
