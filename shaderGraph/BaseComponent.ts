@@ -57,53 +57,6 @@ abstract class BaseComponent {
     abstract build(): string;
 }
 
-/**
- * 
- */
-abstract class RenderComponent extends BaseComponent {
-    /**
-     * 
-     * @param context 
-     * @param compiler 
-     */
-    constructor(context: Context, compiler: Compiler) {
-        super(context, compiler);
-
-    }
-
-    override build(): string {
-        return "";
-    }
-}
-
-/**
- * 
- */
-abstract class ComputeComponent extends BaseComponent {
-    /**
-     * 
-     */
-    protected workGroupSize: number[] = [1, 1, 1];
-
-    /**
-     * 
-     * @param context 
-     * @param compiler 
-     */
-    constructor(context: Context, compiler: Compiler) {
-        super(context, compiler);
-    }
-
-    /**
-     * 
-     * @returns 
-     */
-    public getWorkGrpoupSize = (): number[] => {
-        return this.workGroupSize;
-    }
-}
-
 export {
-    RenderComponent,
-    ComputeComponent
+    BaseComponent
 }

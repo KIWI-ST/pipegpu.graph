@@ -24,6 +24,7 @@ import { TextureSamplerSnippet } from '../../../shaderGraph/snippet/TextureSampl
 import { PointLightSnippet } from '../../../shaderGraph/snippet/PointLightSnippet';
 import { ViewSnippet } from '../../../shaderGraph/snippet/ViewSnippet';
 import { DebugSnippet } from '../../../shaderGraph/snippet/DebugSnippet';
+import { MeshPhongBindlessComponent } from '../../../shaderGraph/component/MeshPhongBindlessComponent';
 
 const nanoEntry = async () => {
 
@@ -39,7 +40,7 @@ const nanoEntry = async () => {
     const compiler: Compiler = new Compiler({ ctx: ctx });
     {
         const canvas: HTMLCanvasElement = document.getElementById('GeoSketchpadConainter') as HTMLCanvasElement;
-        canvas.style.left = `500px`;
+        canvas.style.left = `400px`;
         canvas.style.position = `fixed`;
     }
     // color attachment
@@ -70,13 +71,35 @@ const nanoEntry = async () => {
     const materialPhongSnippet = new MaterialPhongDescSnippet(compiler);
     const materialTexture2DArraySnippet = new Texture2DArraySnippet(compiler);
     const instanceDescSnippet = new InstanceDescSnippet(compiler);
-    const instanceOrder = new StorageArrayU32Snippet(compiler);
-    const storageIndexSnippet = new StorageIndexSnippet(compiler);
+    const instanceOrderSnippet = new StorageArrayU32Snippet(compiler);
     const indexedIndirectSnippet = new IndexedIndirectSnippet(compiler);
     const instanceCountAtomicSnippet = new StorageAtomicU32Snippet(compiler);
     const textureSamplerSnippet = new TextureSamplerSnippet(compiler);
     const pointLightSnippet = new PointLightSnippet(compiler);
     const viewSnippet = new ViewSnippet(compiler);
+
+    const meshPhongComponent = new MeshPhongBindlessComponent(
+        ctx,
+        compiler,
+        debugSnippet,
+        fragmentSnippet,
+        vertexSnippet,
+        viewProjectionSnippet,
+        viewSnippet,
+        instanceDescSnippet,
+        meshDescSnippet,
+        materialPhongSnippet,
+        instanceOrderSnippet,
+        pointLightSnippet,
+        materialTexture2DArraySnippet,
+        textureSamplerSnippet
+    );
+
+    const WGSLCode = meshPhongComponent.build();
+    console.log(WGSLCode);
+
+
+
 
 
 

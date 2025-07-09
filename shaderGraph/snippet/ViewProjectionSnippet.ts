@@ -1,12 +1,6 @@
 import { Compiler, UniformBuffer } from 'pipegpu';
-import { Mat4 } from 'pipegpu.matrix';
 import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from '../BaseSnippet';
 import { type Handle1D } from 'pipegpu/src/res/buffer/BaseBuffer';
-
-interface IVIEWPROJECTION {
-    viewMatrix: Mat4;
-    projectionMatrix: Mat4;
-}
 
 /**
  * ViewProjectionSnippet is a shader code snippet that provides the view and projection matrices.
@@ -40,7 +34,7 @@ class ViewProjectionSnippet extends BaseSnippet {
      * @param bindingIndex The index of the binding.
      * @param shaderCodeFormat The format of the shader code.
      */
-    override initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `VIEWPROJECTION`;
         this.shaderCode.structCode = `
         
@@ -63,6 +57,5 @@ class ViewProjectionSnippet extends BaseSnippet {
 }
 
 export {
-    type IVIEWPROJECTION,
     ViewProjectionSnippet
 }
