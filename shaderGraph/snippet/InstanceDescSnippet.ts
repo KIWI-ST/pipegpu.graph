@@ -1,14 +1,5 @@
-import { Mat4 } from "pipegpu.matrix";
 import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
 import { Compiler, StorageBuffer, type TypedArray2DFormat } from "pipegpu";
-
-/**
- * 
- */
-interface IINSTANCEDESC {
-    model: Mat4,
-    meshId: number
-}
 
 /**
  * 
@@ -56,7 +47,7 @@ struct ${this.shaderCode.structName}
         this.shaderCode.variableName = `instance_desc_arr_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `
         
-@group(${groupIndex}}) @binding(${bindingIndex}) var<storage, read> ${this.shaderCode.variableCode}: array<${this.shaderCode.structName}>;
+@group(${groupIndex}) @binding(${bindingIndex}) var<storage, read> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
         
         `;
 
@@ -65,6 +56,5 @@ struct ${this.shaderCode.structName}
 }
 
 export {
-    type IINSTANCEDESC,
     InstanceDescSnippet
 }

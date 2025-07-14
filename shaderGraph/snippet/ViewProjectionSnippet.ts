@@ -24,7 +24,7 @@ class ViewProjectionSnippet extends BaseSnippet {
     public getBuffer(handler: Handle1D): UniformBuffer {
         const buffer = this.compiler.createUniformBuffer({
             totalByteLength: 128,
-            handler: handler,
+            handler: handler
         });
         return buffer;
     }

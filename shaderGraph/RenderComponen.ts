@@ -19,7 +19,7 @@ abstract class RenderComponent extends BaseComponent {
         let code: string = "";
         let step: number = 0;
         this.snippetArray.forEach(snippet => {
-            const groups: number = Math.floor(step / this.maxBindGroup);
+            const groups: number = Math.floor(step / this.maxBindingsPerBindGroup);
             const bindings: number = Math.floor(step % this.maxBindingsPerBindGroup);
             if (groups >= this.maxBindGroup) {
                 throw new Error(`[E][RenderShader][Build] build render shader code failed. max bind group limit: ${this.maxBindGroup}.`);
