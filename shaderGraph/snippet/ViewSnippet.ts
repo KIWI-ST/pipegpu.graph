@@ -54,7 +54,10 @@ class ViewSnippet extends BaseSnippet {
         //     view.nearPlane, view.farPlane,
         //     view.pixelThreshold, view.softwareRasterizerThreshold
         // ]);
-        const buffer = this.compiler.createUniformBuffer({ handler: handler });
+        const buffer = this.compiler.createUniformBuffer({
+            totalByteLength: 10 * 4,
+            handler: handler
+        });
         return buffer;
     }
 
@@ -68,25 +71,25 @@ class ViewSnippet extends BaseSnippet {
         this.shaderCode.structName = `VIEW`;
         this.shaderCode.structCode = `
         
-        struct ${this.shaderCode.structName}
-        {
-            camera_position_x: f32,
-            camera_position_y: f32,
-            camera_position_z: f32,
-            camera_vertical_scaling_factor: f32,
-            viewport_width: f32,
-            viewport_height: f32,
-            near_plane: f32,
-            far_plane: f32,
-            pixel_threshold: f32,
-            software_rasterizer_threshold: f32
-        };
+struct ${this.shaderCode.structName}
+{
+    camera_position_x: f32,
+    camera_position_y: f32,
+    camera_position_z: f32,
+    camera_vertical_scaling_factor: f32,
+    viewport_width: f32,
+    viewport_height: f32,
+    near_plane: f32,
+    far_plane: f32,
+    pixel_threshold: f32,
+    software_rasterizer_threshold: f32
+};
         
         `;
         this.shaderCode.variableName = `view_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `
 
-        @group(${groupIndex}) @binding(${bindingIndex}) var<uniform> ${this.shaderCode.variableName}: ${this.shaderCode.structName};
+@group(${groupIndex}) @binding(${bindingIndex}) var<uniform> ${this.shaderCode.variableName}: ${this.shaderCode.structName};
 
         `;
 

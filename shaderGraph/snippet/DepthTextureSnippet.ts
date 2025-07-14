@@ -36,7 +36,7 @@ class DepthTextureSnippet extends BaseSnippet {
         this.shaderCode.variableName = `depth_texture_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `
 
-        @group(${groupIndex}) @binding(${bindingIndex}) var ${this.shaderCode.variableName}: ${this.shaderCode.structName};
+@group(${groupIndex}) @binding(${bindingIndex}) var ${this.shaderCode.variableName}: ${this.shaderCode.structName};
 
         `;
 

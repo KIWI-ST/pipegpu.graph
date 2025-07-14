@@ -25,13 +25,13 @@ class StorageIndexSnippet extends BaseSnippet {
         if ('computer' === shaderCodeFormat) {
             this.shaderCode.variableCode = `
 
-            @group(${groupIndex}) @binding(${bindingIndex}) var<storage, read_write> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
+@group(${groupIndex}) @binding(${bindingIndex}) var<storage, read_write> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
 
             `;
         } else if ('renderer' == shaderCodeFormat) {
             this.shaderCode.variableCode = `
 
-            @group(${groupIndex}) @binding(${bindingIndex}) var<storage, read> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
+@group(${groupIndex}) @binding(${bindingIndex}) var<storage, read> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
 
             `;
         } else {

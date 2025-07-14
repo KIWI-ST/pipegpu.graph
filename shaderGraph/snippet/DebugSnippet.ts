@@ -27,25 +27,25 @@ class DebugSnippet extends BaseSnippet {
         this.shaderCode.structName = "DEBUG";
         this.shaderCode.structCode = `
 
-            struct ${this.shaderCode.structName}
-            {
-                x: f32,
-                y: f32,
-                z: f32,
-                w: f32,
-                u: f32,
-                v: f32,
-                r: f32,
-                g: f32,
-                b: f32,
-                a: f32,
-            };
+struct ${this.shaderCode.structName}
+{
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+    u: f32,
+    v: f32,
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+};
         
         `;
         this.shaderCode.variableName = `debug_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `
         
-        @group(${groupIndex}) @binding(${bindingIndex}) var<storage, read_write> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
+@group(${groupIndex}) @binding(${bindingIndex}) var<storage, read_write> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
 
         `;
 
@@ -71,7 +71,8 @@ class DebugSnippet extends BaseSnippet {
             debugData.r, debugData.g, debugData.b, debugData.a
         ]);
         const buffer = this.compiler.createMapBuffer({
-            rawData: [debugDataArray]
+            totalByteLength: 10 * 4,
+            rawData: [debugDataArray],
         });
         return buffer;
     }

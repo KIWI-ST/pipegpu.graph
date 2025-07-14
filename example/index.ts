@@ -1,5 +1,5 @@
 import { fetchKTX2AsBc7RGBA, type IKTXPack } from './util/fetchKTX';
-import { fetchHDMF, type IMeshDataPack } from './util/fetchHDMF';
+import { fetchHDMF, type MeshDataPack } from './util/fetchHDMF';
 import { PSEUDOMERCATOR } from './plugin/cesium/Ellipsoid';
 import { GeodeticCoordinate } from './plugin/cesium/GeodeticCoordinate';
 import { cesiumEntry, SCENE_CAMERA } from './plugin/cesium/CesiumEntry';
@@ -26,12 +26,12 @@ import { nanoEntry } from './plugin/nano/nanoEntry';
     }
 
     {
-        const meshDataPack0: IMeshDataPack = await fetchHDMF('/example/asset/hdmf/dd72915d284fd06746be4a54e0883ee29dcfd8383f1dc113b1537c2e530b39cc.hdmf');
-        console.log(meshDataPack0);
+        // const meshDataPack0: MeshDataPack = await fetchHDMF('/example/asset/hdmf/0010549f74c8f50e81b1fe5ea863abc7c2e0fe5bd48a46efbbbecf29a0215975.hdmf');
+        // console.log(meshDataPack0);
     }
 
     {
-        const meshDataPack1: IMeshDataPack = await fetchHDMF('http://127.0.0.1/output/BistroExterior/0010549f74c8f50e81b1fe5ea863abc7c2e0fe5bd48a46efbbbecf29a0215975.hdmf');
+        const meshDataPack1: MeshDataPack = await fetchHDMF('http://127.0.0.1/output/BistroExterior/0010549f74c8f50e81b1fe5ea863abc7c2e0fe5bd48a46efbbbecf29a0215975.hdmf');
         console.log(meshDataPack1);
     }
 

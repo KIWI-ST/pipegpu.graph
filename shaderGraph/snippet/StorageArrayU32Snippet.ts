@@ -26,13 +26,13 @@ class StorageArrayU32Snippet extends BaseSnippet {
         if ('renderer' === shaderCodeFormat) {
             this.shaderCode.variableCode = `
             
-            @group(${groupIndex}) @binding(${bindingIndex}) var<storage, read> ${this.shaderCode.variableCode}: array<${this.shaderCode.structName}>;
+@group(${groupIndex}) @binding(${bindingIndex}) var<storage, read> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
             
             `;
         } else if ('computer' === shaderCodeFormat) {
             this.shaderCode.variableCode = `
             
-            @group(${groupIndex}) @binding(${bindingIndex}) var<storage, read_write> ${this.shaderCode.variableCode}: array<${this.shaderCode.structName}>;
+@group(${groupIndex}) @binding(${bindingIndex}) var<storage, read_write> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
             
             `;
         } else {

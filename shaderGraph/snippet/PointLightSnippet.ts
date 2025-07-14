@@ -26,21 +26,21 @@ class PointLightSnippet extends BaseSnippet {
      * @param shaderCodeFormat 
      * @returns 
      */
-    override initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `POINT_LIGHT`;
         this.shaderCode.structCode = `
         
-        struct ${this.shaderCode.structName}
-        {
-            position: vec3<f32>,
-	        color: vec3<f32>,
-        }
+struct ${this.shaderCode.structName}
+{
+    position: vec3<f32>,
+    color: vec3<f32>,
+};
 
         `;
         this.shaderCode.variableName = `point_light_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `
         
-        @group(${groupIndex}) @binding(${bindingIndex}) var<uniform> ${this.shaderCode.variableName} : ${this.shaderCode.structName};
+@group(${groupIndex}) @binding(${bindingIndex}) var<uniform> ${this.shaderCode.variableName} : ${this.shaderCode.structName};
         
         `;
 

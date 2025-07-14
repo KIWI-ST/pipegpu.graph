@@ -28,7 +28,7 @@ import { DebugMeshComponent } from '../../../shaderGraph/component/DebugMeshComp
 import { fetchHDMF, type MeshDataPack } from '../../util/fetchHDMF';
 import type { Handle1D } from 'pipegpu/src/res/buffer/BaseBuffer';
 
-const nanoEntry = async () => {
+const nanoBasic = async () => {
 
     const ctx: Context = new Context({
         selector: "GeoSketchpadConainter",
@@ -104,17 +104,32 @@ const nanoEntry = async () => {
     {
         const rootDir = `http://127.0.0.1/output/BistroExterior/`;
         const meshDataPack: MeshDataPack = await fetchHDMF(`${rootDir}0010549f74c8f50e81b1fe5ea863abc7c2e0fe5bd48a46efbbbecf29a0215975.hdmf`);
+        console.log(meshDataPack);
     }
 
     //
     let desc: RenderHolderDesc = {
         label: '[DEMO][render]',
         vertexShader: compiler.createVertexShader({
-            code: WGSLCode,
+            code: `
+    @vertex
+    fn vs_main(@location(0) in_vertex_position: vec2f) -> @builtin(position) vec4<f32> {
+        return vec4f(in_vertex_position, 0.0, 1.0);
+    }
+    `,
             entryPoint: "vs_main"
         }),
         fragmentShader: compiler.createFragmentShader({
-            code: WGSLCode,
+            code: `
+    @group(0) @binding(0) var<uniform> uColorR:f32;
+    @group(0) @binding(1) var<uniform> uColorG:f32;
+    @group(0) @binding(2) var<uniform> uColorB:f32;
+
+    @fragment
+    fn fs_main() -> @location(0) vec4f {
+        return vec4f(uColorR, uColorG, uColorB, 1.0);
+    }
+    `,
             entryPoint: "fs_main"
         }),
         attributes: new Attributes(),
@@ -178,5 +193,5 @@ const nanoEntry = async () => {
 }
 
 export {
-    nanoEntry
+    nanoBasic
 }

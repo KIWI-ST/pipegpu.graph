@@ -17,23 +17,24 @@ class FragmentDescSnippet extends BaseSnippet {
         this.shaderCode.structName = "FRAGMENT";
         this.shaderCode.structCode = `
 
-            struct ${this.shaderCode.structName}
-            {
-                @builtin(position) position:vec4<f32>,
-                @location(0) @interpolate(flat) pack_id: u32,
-                @location(1) position_ws: vec4<f32>,            // ws = world space
-                @location(2) normal_ws: vec3<f32>,              // ws = world space
-                @location(3) uv:vec2<f32>,
-                @location(4) @interpolate(flat) instance_id: u32,
-                @location(5) @interpolate(flat) meshlet_id: u32,
-                @location(6) @interpolate(flat) triangle_id: u32,
-                @location(7) @interpolate(flat) need_discard: u32
-            };
+struct ${this.shaderCode.structName}
+{
+    @builtin(position) position:vec4<f32>,
+    @location(0) @interpolate(flat) pack_id: u32,
+    @location(1) position_ws: vec4<f32>,            // ws = world space
+    @location(2) normal_ws: vec3<f32>,              // ws = world space
+    @location(3) uv:vec2<f32>,
+    @location(4) @interpolate(flat) instance_id: u32,
+    @location(5) @interpolate(flat) meshlet_id: u32,
+    @location(6) @interpolate(flat) triangle_id: u32,
+    @location(7) @interpolate(flat) need_discard: u32,
+};
 
         `;
 
         return this.shaderCode;
     }
+
 }
 
 export {

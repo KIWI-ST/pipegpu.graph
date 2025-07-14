@@ -1,18 +1,16 @@
 import { Compiler, StorageBuffer, type TypedArray2DFormat } from "pipegpu";
 import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
-import type { Handle2D } from "pipegpu/src/res/buffer/BaseBuffer";
 
 /**
- * VertexSnippet class for handling vertex shader snippets.
+ * 
  */
-class VertexSnippet extends BaseSnippet {
-
+class MaterialSnippet extends BaseSnippet {
     /**
      * 
      * @param compiler 
      */
     constructor(compiler: Compiler) {
-        super(compiler, 'vertex_snippet')
+        super(compiler, 'material_phone_desc_snippet');
     }
 
     /**
@@ -21,15 +19,14 @@ class VertexSnippet extends BaseSnippet {
      * @returns 
      */
     public getBuffer(rawData: TypedArray2DFormat): StorageBuffer {
-        let byteLength = 0;
+        let totalByteLength = 0;
         rawData.forEach(row => {
-            byteLength += row.byteLength;
+            totalByteLength += row.byteLength;
         });
-        const buffer = this.compiler.createStorageBuffer({
-            totalByteLength: byteLength,
+        return this.compiler.createStorageBuffer({
+            totalByteLength: totalByteLength,
             rawData: rawData,
         });
-        return buffer;
     }
 
     /**
@@ -37,37 +34,38 @@ class VertexSnippet extends BaseSnippet {
      * @param groupIndex 
      * @param bindingIndex 
      * @param _shaderCodeFormat 
-     * @returns 
      */
     override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
-        this.shaderCode.structName = `VERTEX`;
+        this.shaderCode.structName = `MATERIAL_DESC`;
         this.shaderCode.structCode = `
         
 struct ${this.shaderCode.structName}
 {
-    px:f32,
-    py:f32,
-    pz:f32,
-    nx:f32,
-    ny:f32,
-    nz:f32,
-    u:f32,
-    v:f32,
+    material_id: u32,
+    material_type: i32,
+    // pbr
+    albedo_texture_id:i32,
+            
+    // phong
+    ambient_texture_id: i32,
+    diffuse_texture_id: i32,
+    specular_texture_id: i32,
+    shininess_texture_id: i32,
+    emissive_texture_id: i32,
 };
-        
-        `;
-        this.shaderCode.variableName = `vertex_arr_${this.snippetStatsID}`;
-        this.shaderCode.variableCode = `
 
-@group(${groupIndex}) @binding(${bindingIndex}) var<storage, read> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
+        `;
+        this.shaderCode.variableName = `material_desc_arr_${this.snippetStatsID}`;
+        this.shaderCode.variableCode = `
         
+@group(${groupIndex}) @binding(${bindingIndex}) var<storage, read> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
+
         `;
 
         return this.shaderCode;
     }
-
 }
 
 export {
-    VertexSnippet
+    MaterialSnippet
 }

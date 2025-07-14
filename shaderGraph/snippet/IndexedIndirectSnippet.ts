@@ -14,20 +14,20 @@ class IndexedIndirectSnippet extends BaseSnippet {
         this.shaderCode.structName = `DRAW_INDEXED_INDIRECT`;
         this.shaderCode.structCode = `
 
-        struct ${this.shaderCode.structName}
-        {
-            index_count: u32,
-            instance_count: u32,
-            first_index: u32,
-            vertex_offset: i32,
-            first_instance: u32
-        };
+struct ${this.shaderCode.structName}
+{
+    index_count: u32,
+    instance_count: u32,
+    first_index: u32,
+    vertex_offset: i32,
+    first_instance: u32,
+};
 
         `
         this.shaderCode.variableName = `draw_indexed_indirect_arr_buffer_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `
         
-        @group(${groupIndex}) @binding(${bindingIndex}) var<storage, read_write> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
+@group(${groupIndex}) @binding(${bindingIndex}) var<storage, read_write> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
 
         `
 

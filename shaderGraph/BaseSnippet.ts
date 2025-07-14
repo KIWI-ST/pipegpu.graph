@@ -1,4 +1,4 @@
-import { Compiler, uniqueID } from 'pipegpu';
+import { Compiler, uniqueID, type TypedArray2DFormat } from 'pipegpu';
 
 /**
  * Base interface for shader code snippets.
@@ -112,6 +112,20 @@ abstract class BaseSnippet {
      * @param shaderCodeFormat 
      */
     abstract initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode;
+
+    /**
+     * 
+     * @param typedArrayData 
+     * @returns {number} return input tpyedArrayData byte length.
+     * 
+     */
+    protected getTypedArrayByteLength = (typedArrayData: TypedArray2DFormat): number => {
+        let byteLength = 0;
+        typedArrayData.forEach(row => {
+            byteLength += row.byteLength;
+        });
+        return byteLength;
+    }
 
     /**
      * return snippet type, e.g debug_snippet

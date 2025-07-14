@@ -28,7 +28,11 @@ class InstanceDescSnippet extends BaseSnippet {
      * @returns 
      */
     public getBuffer(rawData: TypedArray2DFormat): StorageBuffer {
-        const buffer: StorageBuffer = this.compiler.createStorageBuffer({ rawData: rawData });
+        const byteLength = this.getTypedArrayByteLength(rawData);
+        const buffer: StorageBuffer = this.compiler.createStorageBuffer({
+            totalByteLength: byteLength,
+            rawData: rawData,
+        });
         return buffer;
     }
 
@@ -39,20 +43,20 @@ class InstanceDescSnippet extends BaseSnippet {
      * @param shaderCodeFormat 
      */
     override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
-        this.shaderCode.structName = `INSTANCEDESC`;
+        this.shaderCode.structName = `INSTANCE_DESC`;
         this.shaderCode.structCode = `
         
-        struct ${this.shaderCode.structCode}
-        {
-            model: mat4x4<f32>,
-            mesh_id: u32,
-        }
+struct ${this.shaderCode.structName}
+{
+    model: mat4x4<f32>,
+    mesh_id: u32,
+};
 
         `;
         this.shaderCode.variableName = `instance_desc_arr_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `
         
-        @group(${groupIndex}}) @binding(${bindingIndex}) var<storage, read> ${this.shaderCode.variableCode}: array<${this.shaderCode.structName}>;
+@group(${groupIndex}}) @binding(${bindingIndex}) var<storage, read> ${this.shaderCode.variableCode}: array<${this.shaderCode.structName}>;
         
         `;
 

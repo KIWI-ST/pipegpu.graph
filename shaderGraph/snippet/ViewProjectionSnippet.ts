@@ -23,7 +23,8 @@ class ViewProjectionSnippet extends BaseSnippet {
      */
     public getBuffer(handler: Handle1D): UniformBuffer {
         const buffer = this.compiler.createUniformBuffer({
-            handler: handler
+            totalByteLength: 128,
+            handler: handler,
         });
         return buffer;
     }
@@ -38,17 +39,17 @@ class ViewProjectionSnippet extends BaseSnippet {
         this.shaderCode.structName = `VIEWPROJECTION`;
         this.shaderCode.structCode = `
         
-        struct ${this.shaderCode.structName}
-        {
-            projection: mat4x4<f32>,
-            view: mat4x4<f32>,
-        };
+struct ${this.shaderCode.structName}
+{
+    projection: mat4x4<f32>,
+    view: mat4x4<f32>,
+};
 
         `;
         this.shaderCode.variableName = `view_projection_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `
 
-        @group(${groupIndex}) @binding(${bindingIndex}) var<uniform> ${this.shaderCode.variableName}: ${this.shaderCode.structName};
+@group(${groupIndex}) @binding(${bindingIndex}) var<uniform> ${this.shaderCode.variableName}: ${this.shaderCode.structName};
 
         `;
 

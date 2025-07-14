@@ -25,7 +25,7 @@ class StorageAtomicU32Snippet extends BaseSnippet {
         this.shaderCode.variableName = `storage_u32_atmoic_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `
         
-        @group(${groupIndex}) @binding(${bindingIndex}) var<storage, read_write> ${this.shaderCode.variableName}: ${this.shaderCode.structName};
+@group(${groupIndex}) @binding(${bindingIndex}) var<storage, read_write> ${this.shaderCode.variableName}: ${this.shaderCode.structName};
 
         `
 
