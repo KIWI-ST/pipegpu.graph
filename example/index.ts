@@ -14,12 +14,12 @@ import { nanoEntry } from './plugin/nano/nanoEntry';
 
     // init nano
     {
-        await nanoEntry();
+        await nanoEntry(SCENE_CAMERA);
     }
 
     {
-        const latitude: number = 33.0;
-        const longitude: number = 114.0;
+        const latitude: number = 30.593098;
+        const longitude: number = 114.305392;
         const geoLocation: GeodeticCoordinate = new GeodeticCoordinate(longitude, latitude);
         const viewRectangle3DCenter = PSEUDOMERCATOR.geographicToSpace(geoLocation);
         console.log(viewRectangle3DCenter);

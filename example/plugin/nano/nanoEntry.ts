@@ -8,6 +8,8 @@ import {
     Uniforms
 } from 'pipegpu';
 
+import * as Cesium from 'cesium'
+
 import { OrderedGraph } from '../../../index'
 import { VertexSnippet } from '../../../shaderGraph/snippet/VertexSnippet';
 import { FragmentDescSnippet } from '../../../shaderGraph/snippet/FragmentDescSnippet';
@@ -28,7 +30,9 @@ import { DebugMeshComponent } from '../../../shaderGraph/component/DebugMeshComp
 import { fetchHDMF, type MeshDataPack } from '../../util/fetchHDMF';
 import type { Handle1D } from 'pipegpu/src/res/buffer/BaseBuffer';
 
-const nanoEntry = async () => {
+const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
+
+    console.log(SCENE_CAMERA);
 
     const ctx: Context = new Context({
         selector: "GeoSketchpadConainter",
@@ -124,57 +128,23 @@ const nanoEntry = async () => {
         depthStencilAttachment: depthStencilAttachment,
     };
 
-    let seed: number = 0;
-    // const vertexArr = new Float32Array([-0.15, -0.5, 0.5, -0.5, 0.0, 0.5, -0.55, -0.5, -0.05, 0.5, -0.55, 0.5]);
-    const vertexBuffer = compiler.createVertexBuffer({
-        totalByteLength: 12 * 4,
-        handler: () => {
-            return {
-                rewrite: true,
-                detail: {
-                    offset: 0,
-                    byteLength: 12 * 4,
-                    rawData: new Float32Array([-0.15 + Math.sin((seed++) * 0.01), -0.5, 0.5, -0.5, 0.0, 0.5, -0.55, -0.5, -0.05, 0.5, -0.55, 0.5])
-                }
-            }
-        }
-    });
-    desc.attributes?.assign("in_vertex_position", vertexBuffer);
+    // 
+    {
 
-    const uniformBufferR = compiler.createUniformBuffer({
-        totalByteLength: 4,
-        handler: () => {
-            return {
-                rewrite: true,
-                detail: {
-                    offset: 0,
-                    byteLength: 4,
-                    rawData: new Float32Array([Math.cos(seed * 0.01)])
-                }
-            }
-        }
-    });
-    const uniformBufferG = compiler.createUniformBuffer({
-        totalByteLength: 4,
-        rawData: new Float32Array([0.2])
-    });
-    const uniformBufferB = compiler.createUniformBuffer({
-        totalByteLength: 4,
-        rawData: new Float32Array([0.0])
-    });
+    }
 
-    desc.uniforms?.assign("uColorR", uniformBufferR);
-    desc.uniforms?.assign("uColorG", uniformBufferG);
-    desc.uniforms?.assign("uColorB", uniformBufferB);
-
-    const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
-    const graph: OrderedGraph = new OrderedGraph(ctx);
-    const renderLoop = () => {
-        graph.append(holder);
-        graph.build();
+    // raf
+    {
+        const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
+        const graph: OrderedGraph = new OrderedGraph(ctx);
+        const renderLoop = () => {
+            graph.append(holder);
+            graph.build();
+            requestAnimationFrame(renderLoop);
+        };
         requestAnimationFrame(renderLoop);
-    };
-    requestAnimationFrame(renderLoop);
+    }
+
 }
 
 export {
