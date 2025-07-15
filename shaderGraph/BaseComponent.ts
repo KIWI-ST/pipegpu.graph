@@ -47,7 +47,7 @@ abstract class BaseComponent {
      * 
      * @param snippet
      */
-    append(snippet: BaseSnippet) {
+    protected append(snippet: BaseSnippet) {
         this.snippetArray.push(snippet);
     }
 

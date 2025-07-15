@@ -27,18 +27,46 @@ import { PointLightSnippet } from '../../../shaderGraph/snippet/PointLightSnippe
 import { ViewSnippet } from '../../../shaderGraph/snippet/ViewSnippet';
 import { DebugSnippet } from '../../../shaderGraph/snippet/DebugSnippet';
 import { DebugMeshComponent } from '../../../shaderGraph/component/DebugMeshComponent';
-import { fetchHDMF, type MeshDataPack } from '../../util/fetchHDMF';
-import type { Handle1D } from 'pipegpu/src/res/buffer/BaseBuffer';
+import { fetchHDMF, type Material, type MaterialType, type MeshDataPack } from '../../util/fetchHDMF';
+import type { Handle1D, Handle2D } from 'pipegpu/src/res/buffer/BaseBuffer';
 import { SceneManagement } from './earth/SceneManagement';
 import { webMercatorTileSchema } from './earth/QuadtreeTileSchema';
 import { PSEUDOMERCATOR } from './earth/Ellipsoid';
+import { fetchJSON, type Instance, type InstanceDataPack } from '../../util/fetchJSON';
+import { fetchKTX2AsBc7RGBA, type KTXPackData } from '../../util/fetchKTX';
+import { DebugMeshletComponent } from '../../../shaderGraph/component/DebugMeshletComponent';
+import type { Mat4, Vec4 } from 'pipegpu.matrix';
 
+
+type InstanceDesc = {
+    model: Mat4
+    mesh_id: number,
+};
+
+type MeshDesc = {
+    bounding_sphere: Vec4,
+    vertex_offset: number,
+    mesh_id: number,
+    meshlet_count: number,
+    material_id: number
+};
+
+type VertexDesc = {
+    px: number,
+    py: number,
+    pz: number,
+    nx: number,
+    ny: number,
+    nz: number,
+    u: number,
+    v: number,
+};
 
 const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
 
     const viewportWidth = 400, viewportHeight = 400;
 
-    const management = new SceneManagement({
+    const sceneManagement: SceneManagement = new SceneManagement({
         camera: SCENE_CAMERA,
         quadtreeTileSchema: webMercatorTileSchema,
         ellipsoid: PSEUDOMERCATOR,
@@ -96,33 +124,243 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
     const textureSamplerSnippet: TextureSamplerSnippet = new TextureSamplerSnippet(compiler);
     const pointLightSnippet: PointLightSnippet = new PointLightSnippet(compiler);
     const viewSnippet: ViewSnippet = new ViewSnippet(compiler);
+    const indexedStorageSnippet = new StorageIndexSnippet(compiler);
 
-    const meshPhongComponent: DebugMeshComponent = new DebugMeshComponent(
+    // const meshPhongComponent: DebugMeshComponent = new DebugMeshComponent(
+    //     ctx,
+    //     compiler,
+    //     debugSnippet,
+    //     fragmentSnippet,
+    //     vertexSnippet,
+    //     viewProjectionSnippet,
+    //     viewSnippet,
+    //     instanceDescSnippet,
+    //     meshDescSnippet,
+    //     materialPhongSnippet,
+    //     instanceOrderSnippet,
+    //     pointLightSnippet,
+    //     materialTexture2DArraySnippet,
+    //     textureSamplerSnippet
+    // );
+
+    // const WGSLCode: string = meshPhongComponent.build();
+
+    const rootDir = `http://127.0.0.1/output/BistroExterior/`;
+    const sceneTileMap: Map<string, InstanceDataPack> = new Map();  // instance data
+    const sceneMeshMap: Map<string, MeshDataPack> = new Map();      // mesh desc and mesh vertex
+    const sceneTextureMap: Map<string, KTXPackData> = new Map();    // texture
+    const sceneTaskLimit = 3;
+    const UpdateSceneCPUData = async () => {
+        const visualRevealTiles = sceneManagement.getVisualRevealTiles();
+        let remain = sceneTaskLimit;
+        let tile = visualRevealTiles?.shift();
+        const tileKey = `${rootDir}${tile?.X}_${tile?.Y}_${tile?.Level}.json`;
+        while (remain-- && tile && !sceneTileMap.has(tileKey)) {
+            const jsonPackData = await fetchJSON(tileKey, tileKey);
+            jsonPackData?.instances.forEach(async instancePack => {
+                sceneTileMap.set(tileKey, jsonPackData);
+                const meshKey = `${rootDir}${instancePack.mesh_id}.hdmf`;
+                const meshPackData = await fetchHDMF(meshKey, instancePack.mesh_id);
+                sceneMeshMap.set(meshPackData.meshId, meshPackData);
+                const material: any = meshPackData.material;
+                switch (material?.material_type as MaterialType) {
+                    case 'kMaterialPBR':
+                        {
+                            const albedo_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.albedo_texture}`, material.albedo_texture);
+                            sceneTextureMap.set(material.albedo_texture, albedo_texture!);
+
+                            const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.metal_roughness_texture}`, material.metal_roughness_texture);
+                            sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
+
+                            const normal_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.normal_texture}`, material.normal_texture);
+                            sceneTextureMap.set(material.normal_texture, normal_texture!);
+
+                            const emissive_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.emissive_texture}`, material.emissive_texture);
+                            sceneTextureMap.set(material.emissive_texture, emissive_texture!);
+
+                            const ambient_occlusion_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.ambient_occlusion_texture}`, material.ambient_occlusion_texture);
+                            sceneTextureMap.set(material.ambient_occlusion_texture, ambient_occlusion_texture!);
+
+                            break;
+                        }
+                    case 'kMaterialPBR1':
+                        {
+                            const albedo_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.albedo_texture}`, material.albedo_texture);
+                            sceneTextureMap.set(material.albedo_texture, albedo_texture!);
+
+                            const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.metal_roughness_texture}`, material.metal_roughness_texture);
+                            sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
+
+                            const normal_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.normal_texture}`, material.normal_texture);
+                            sceneTextureMap.set(material.normal_texture, normal_texture!);
+
+                            const ambient_occlusion_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.ambient_occlusion_texture}`, material.ambient_occlusion_texture);
+                            sceneTextureMap.set(material.ambient_occlusion_texture, ambient_occlusion_texture!);
+
+                            break;
+                        }
+                    case 'kMaterialPBR2':
+                        {
+                            const albedo_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.albedo_texture}`, material.albedo_texture);
+                            sceneTextureMap.set(material.albedo_texture, albedo_texture!);
+
+                            const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.metal_roughness_texture}`, material.metal_roughness_texture);
+                            sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
+
+                            const normal_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.normal_texture}`, material.normal_texture);
+                            sceneTextureMap.set(material.normal_texture, normal_texture!);
+
+                            break;
+                        }
+                    case 'kMaterialPBR3':
+                        {
+                            const albedo_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.albedo_texture}`, material.albedo_texture);
+                            sceneTextureMap.set(material.albedo_texture, albedo_texture!);
+
+                            const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.metal_roughness_texture}`, material.metal_roughness_texture);
+                            sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
+
+                            break;
+                        }
+                    case 'kMaterialPhong':
+                        {
+                            const ambient_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.ambient_texture}`, material.ambient_texture);
+                            sceneTextureMap.set(material.ambient_texture, ambient_texture!);
+
+                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.diffuse_texture}`, material.diffuse_texture);
+                            sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+
+                            const specular_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.specular_texture}`, material.specular_texture);
+                            sceneTextureMap.set(material.specular_texture, specular_texture!);
+
+                            const emissive_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.emissive_texture}`, material.emissive_texture);
+                            sceneTextureMap.set(material.emissive_texture, emissive_texture!);
+
+                            break;
+                        }
+                    case 'kMaterialPhong1':
+                        {
+                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.diffuse_texture}`, material.diffuse_texture);
+                            sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+
+                            const specular_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.specular_texture}`, material.specular_texture);
+                            sceneTextureMap.set(material.specular_texture, specular_texture!);
+
+                            const emissive_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.emissive_texture}`, material.emissive_texture);
+                            sceneTextureMap.set(material.emissive_texture, emissive_texture!);
+
+                            break;
+                        }
+                    case 'kMaterialPhong2':
+                        {
+                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.diffuse_texture}`, material.diffuse_texture);
+                            sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+
+                            const specular_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.specular_texture}`, material.specular_texture);
+                            sceneTextureMap.set(material.specular_texture, specular_texture!);
+
+                            break;
+                        }
+                    case 'kMaterialPhong3':
+                        {
+                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.diffuse_texture}`, material.diffuse_texture);
+                            sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+
+                            const specular_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.specular_texture}`, material.specular_texture);
+                            sceneTextureMap.set(material.specular_texture, specular_texture!);
+
+                            break;
+                        }
+                    case 'kMaterialPhong4':
+                        {
+                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.diffuse_texture}`, material.diffuse_texture);
+                            sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+
+                            break;
+                        }
+
+                    case 'kMaterialPhong5':
+                        {
+                            break;
+                        }
+                    case 'kMaterialPhong6':
+                        {
+                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.diffuse_texture}`, material.diffuse_texture);
+                            sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+
+                            const normal_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.normal_texture}`, material.normal_texture);
+                            sceneTextureMap.set(material.normal_texture, normal_texture!);
+
+                            break;
+                        }
+                    case 'kMaterialPhong7':
+                        {
+                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${rootDir}${material.diffuse_texture}`, material.diffuse_texture);
+                            sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+
+                            break;
+                        }
+                    case 'kMaterialPhong8':
+                        {
+                            break;
+                        }
+                }
+                // build pair:
+                // instance - mesh - material - textures
+            });
+        }
+    };
+
+    // manage cpu-side data.
+    // - instance desc
+    // - vertex data
+    // - material desc
+    // - textures
+    // TODO:: temporary cancellation of material support.
+    const instanceDescMap: Map<string, number>;
+    const instanceDescArray: InstanceDesc[] = [];
+    const meshDescMap: Map<string, number>;
+    const meshDescArray: MeshDesc[] = [];
+    const vertexArray: VertexDesc[] = [];
+    const vertexOffset: number = 0;
+    const AppendDataPack = async (instance: Instance, meshDataPack: MeshDataPack) => {
+        if (!meshDescMap.has(meshDataPack.meshId)) {
+            const meshId: number = meshDescArray.length;
+            meshDescMap.set(meshDataPack.meshId, meshId);
+            meshDescArray.push({
+                bounding_sphere: null,
+                vertex_offset: vertexOffset,
+                mesh_id: meshId,
+                meshlet_count: meshDataPack.meshlets.length,
+                material_id: 0, // TODO material 
+            });
+        }
+
+        if (!instanceDescMap.has(instance.id)) {
+            instanceDescMap.set(instance.id, instanceDescArray.length);
+            instanceDescArray.push({
+                model: instance.model,
+                mesh_id:
+            });
+        }
+    };
+
+    // draw meshlet shader
+    const debugMeshletComponent: DebugMeshletComponent = new DebugMeshletComponent(
         ctx,
         compiler,
-        debugSnippet,
         fragmentSnippet,
         vertexSnippet,
+        instanceDescSnippet,
         viewProjectionSnippet,
         viewSnippet,
-        instanceDescSnippet,
         meshDescSnippet,
-        materialPhongSnippet,
+        indexedStorageSnippet,
         instanceOrderSnippet,
-        pointLightSnippet,
-        materialTexture2DArraySnippet,
-        textureSamplerSnippet
     );
 
-    const WGSLCode: string = meshPhongComponent.build();
+    const WGSLCode = debugMeshletComponent.build();
 
-    // asset load 
-    {
-        const rootDir = `http://127.0.0.1/output/BistroExterior/`;
-        const meshDataPack: MeshDataPack = await fetchHDMF(`${rootDir}0010549f74c8f50e81b1fe5ea863abc7c2e0fe5bd48a46efbbbecf29a0215975.hdmf`);
-    }
-
-    //
     let desc: RenderHolderDesc = {
         label: '[DEMO][render]',
         vertexShader: compiler.createVertexShader({
@@ -140,17 +378,89 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
         depthStencilAttachment: depthStencilAttachment,
     };
 
+    // view projection matrix
+    {
+        const viewProjectionHandler: Handle1D = () => {
+            const rawData = new Float32Array([
+                // projection matrix
+                SCENE_CAMERA.frustum.projectionMatrix[0],
+                SCENE_CAMERA.frustum.projectionMatrix[1],
+                SCENE_CAMERA.frustum.projectionMatrix[2],
+                SCENE_CAMERA.frustum.projectionMatrix[3],
+                SCENE_CAMERA.frustum.projectionMatrix[4],
+                SCENE_CAMERA.frustum.projectionMatrix[5],
+                SCENE_CAMERA.frustum.projectionMatrix[6],
+                SCENE_CAMERA.frustum.projectionMatrix[7],
+                SCENE_CAMERA.frustum.projectionMatrix[8],
+                SCENE_CAMERA.frustum.projectionMatrix[9],
+                SCENE_CAMERA.frustum.projectionMatrix[10],
+                SCENE_CAMERA.frustum.projectionMatrix[11],
+                SCENE_CAMERA.frustum.projectionMatrix[12],
+                SCENE_CAMERA.frustum.projectionMatrix[13],
+                SCENE_CAMERA.frustum.projectionMatrix[14],
+                SCENE_CAMERA.frustum.projectionMatrix[15],
+                // view matrix
+                SCENE_CAMERA.viewMatrix[0],
+                SCENE_CAMERA.viewMatrix[1],
+                SCENE_CAMERA.viewMatrix[2],
+                SCENE_CAMERA.viewMatrix[3],
+                SCENE_CAMERA.viewMatrix[4],
+                SCENE_CAMERA.viewMatrix[5],
+                SCENE_CAMERA.viewMatrix[6],
+                SCENE_CAMERA.viewMatrix[7],
+                SCENE_CAMERA.viewMatrix[8],
+                SCENE_CAMERA.viewMatrix[9],
+                SCENE_CAMERA.viewMatrix[10],
+                SCENE_CAMERA.viewMatrix[11],
+                SCENE_CAMERA.viewMatrix[12],
+                SCENE_CAMERA.viewMatrix[13],
+                SCENE_CAMERA.viewMatrix[14],
+                SCENE_CAMERA.viewMatrix[15],
+            ]);
+            return {
+                rewrite: true,
+                detail: {
+                    offset: 0,
+                    byteLength: 4 * 4 * 4 * 2,
+                    rawData: rawData
+                }
+            }
+        };
+        const viewProjectionBuffer = viewProjectionSnippet.getBuffer(viewProjectionHandler);
+        desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), viewProjectionBuffer);
+    }
+
+    // vertex buffer
+    {
+        let vertexBufferOffset = 0;
+        const vertexBufferHandle: Handle2D = () => {
+
+
+            rewrite: boolean,
+                details: Array<{
+                    offset: number,
+                    byteLength: number,
+                    rawData: TypedArray1DFormat
+                }>
+        }
+        const vertexBuffer = vertexSnippet.getBuffer()
+
+    }
+
     // raf
     {
-        // const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
+        sceneManagement.updateQuadtreeTileByDistanceError();
+
+        const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
         const graph: OrderedGraph = new OrderedGraph(ctx);
         const renderLoop = () => {
             // cpu update scene
-            management.updateQuadtreeTileByDistanceError();
-            console.log(management.getVisualRevealTiles());
+            // management.updateQuadtreeTileByDistanceError();
+            // console.log(management.getVisualRevealTiles());
+            UpdateSceneCPUData();
 
             // gpu render
-            // graph.append(holder);
+            graph.append(holder);
             graph.build();
 
             // loop

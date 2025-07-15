@@ -1,6 +1,5 @@
-/**
- * 
- */
+import type { Vec4 } from "pipegpu.matrix";
+
 type MaterialType =
     | 'kMaterialPBR'
     | 'kMaterialPBR1'
@@ -116,11 +115,9 @@ type Meshlet = {
     indices: Uint32Array,
 };
 
-/**
- * 
- */
 type MeshDataPack = {
-    key: string,
+    meshId: string,
+    sphereBound: Vec4,
     vertices: Float32Array,
     meshlets: Array<Meshlet>,
     material:
@@ -142,9 +139,23 @@ type MeshDataPack = {
 
 /**
  * 
- * @param uri 
- * @param _key 
+ * TODO:: compute aabb and sphere box
+ * struct MPVertex
+ * {
+ *    float px, py, pz;                                               
+ *    float nx, ny, nz;                                               
+ *    float tx, ty, tz;     
+ * };
+ * 
+ * @param vertices 
+ * @param meshlets 
  */
+const computeBounds = (vertices: Float32Array, meshlets: Meshlet[]) => {
+    const lerp: number = 9;
+    const size = vertices.length;
+}
+
+
 const fetchHDMF = async (uri: string, key: string = ""): Promise<MeshDataPack> => {
     const response = await fetch(uri);
     if (!response.ok) {
@@ -186,7 +197,7 @@ const fetchHDMF = async (uri: string, key: string = ""): Promise<MeshDataPack> =
     }
 
     const meshDataPack: MeshDataPack = {
-        key: key,
+        meshId: key,
         vertices: vertices,
         meshlets: meshlets,
         material: undefined,
@@ -325,7 +336,7 @@ const fetchHDMF = async (uri: string, key: string = ""): Promise<MeshDataPack> =
 
 export {
     type MaterialType,
-    type MaterialPBR, type MaterialPBR1, type MaterialPBR2, type MaterialPBR3,
+    type Material, type MaterialPBR, type MaterialPBR1, type MaterialPBR2, type MaterialPBR3,
     type MaterialPhong, type MaterialPhong1, type MaterialPhong2, type MaterialPhong3, type MaterialPhong4, type MaterialPhong5, type MaterialPhong6, type MaterialPhong7, type MaterialPhong8,
     type MeshDataPack,
     fetchHDMF

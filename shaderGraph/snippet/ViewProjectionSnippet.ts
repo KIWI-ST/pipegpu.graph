@@ -36,7 +36,7 @@ class ViewProjectionSnippet extends BaseSnippet {
      * @param shaderCodeFormat The format of the shader code.
      */
     override initShaderCode(groupIndex: number, bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
-        this.shaderCode.structName = `VIEWPROJECTION`;
+        this.shaderCode.structName = `VIEW_PROJECTION`;
         this.shaderCode.structCode = `
         
 struct ${this.shaderCode.structName}

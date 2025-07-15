@@ -8,7 +8,7 @@ type textureType = 'BC7_RGBA';
 /**
  * 
  */
-interface IKTXPack {
+interface KTXPackData {
     key: string,
     data: Uint8Array,
     width: number,
@@ -25,7 +25,7 @@ interface IKTXPack {
  * @returns Promise<KTX2Container>
  *
  */
-const fetchKTX2AsBc7RGBA = async (uri: string, key: string = ""): Promise<IKTXPack> => {
+const fetchKTX2AsBc7RGBA = async (uri: string, key: string = ""): Promise<KTXPackData | undefined> => {
     try {
         const ktx = await LoadLIBKTX();
         const response = await fetch(uri);
@@ -49,13 +49,15 @@ const fetchKTX2AsBc7RGBA = async (uri: string, key: string = ""): Promise<IKTXPa
             throw new Error(`[E][fetchKTX ] ktx2 load failed, transcodeBasis error.`);
         }
     } catch (error) {
-        throw new Error(`[E][fetchKTX ] ktx2 load failed, response code: ${error}`);
+        // throw new Error(`[E][fetchKTX ] ktx2 load failed, response code: ${error}`);
+        console.log(`[E][fetchKTX ] ktx2 load failed, response code: ${error}`);
+        return undefined;
     }
 };
 
 export {
     type textureType,
-    type IKTXPack,
+    type KTXPackData,
     fetchKTX2AsBc7RGBA
 }
 

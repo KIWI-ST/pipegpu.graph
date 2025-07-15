@@ -26,7 +26,7 @@ class MeshDescSnippet extends BaseSnippet {
         
 struct ${this.shaderCode.structName}
 {
-    ounding_sphere:vec4<f32>,
+    bounding_sphere:vec4<f32>,
     vertex_offset: u32,
     mesh_id: u32,
     meshlet_count: u32,

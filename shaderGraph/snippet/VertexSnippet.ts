@@ -20,14 +20,10 @@ class VertexSnippet extends BaseSnippet {
      * @param rawData 
      * @returns 
      */
-    public getBuffer(rawData: TypedArray2DFormat): StorageBuffer {
-        let byteLength = 0;
-        rawData.forEach(row => {
-            byteLength += row.byteLength;
-        });
+    public getBuffer = (handler: Handle2D, maximumByteLength: number): StorageBuffer => {
         const buffer = this.compiler.createStorageBuffer({
-            totalByteLength: byteLength,
-            rawData: rawData,
+            totalByteLength: maximumByteLength,
+            handler: handler,
         });
         return buffer;
     }

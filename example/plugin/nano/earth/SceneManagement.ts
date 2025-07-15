@@ -35,6 +35,15 @@ class SceneManagement {
         this.viewportWidth = opts.viewportWidth;
         this.viewportHeight = opts.viewportHeight;
         this.initQuadTree();
+        this.initCameraChanged();
+
+    }
+
+    private initCameraChanged = () => {
+        this.camera.changed.addEventListener(_e => {
+            this.updateQuadtreeTileByDistanceError();
+            console.log(this.getVisualRevealTiles());
+        });
     }
 
     private initQuadTree = () => {
