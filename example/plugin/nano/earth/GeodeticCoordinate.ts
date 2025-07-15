@@ -1,4 +1,6 @@
+
 class GeodeticCoordinate {
+
     private alt: number;
     private lat: number;
     private lng: number;
@@ -33,6 +35,7 @@ class GeodeticCoordinate {
     set Altitude(v: number) {
         this.alt = v;
     }
+
 }
 
 export {

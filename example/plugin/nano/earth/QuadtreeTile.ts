@@ -6,7 +6,7 @@ import { QuadtreeTileSchema } from "./QuadtreeTileSchema";
  * @class
  */
 class QuadtreeTile {
-    private parent: QuadtreeTile;
+    private parent?: QuadtreeTile;
     private boundary: Rectangle;
     private level: number;
     private y: number;
@@ -17,7 +17,7 @@ class QuadtreeTile {
     private northwestChild!: QuadtreeTile;
     private northeastChild!: QuadtreeTile;
 
-    constructor(quadtreeTileSchema: QuadtreeTileSchema, x: number, y: number, level: number, parent: QuadtreeTile) {
+    constructor(quadtreeTileSchema: QuadtreeTileSchema, x: number, y: number, level: number, parent?: QuadtreeTile) {
         this.quadtreeTileSchema = quadtreeTileSchema;
         this.x = x;
         this.y = y;
@@ -93,7 +93,7 @@ class QuadtreeTile {
         return this.northeastChild;
     }
 
-    get Parent(): QuadtreeTile {
+    get Parent(): QuadtreeTile | undefined {
         return this.parent;
     }
 

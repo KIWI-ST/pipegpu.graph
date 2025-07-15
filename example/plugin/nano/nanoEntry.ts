@@ -29,15 +29,27 @@ import { DebugSnippet } from '../../../shaderGraph/snippet/DebugSnippet';
 import { DebugMeshComponent } from '../../../shaderGraph/component/DebugMeshComponent';
 import { fetchHDMF, type MeshDataPack } from '../../util/fetchHDMF';
 import type { Handle1D } from 'pipegpu/src/res/buffer/BaseBuffer';
+import { SceneManagement } from './earth/SceneManagement';
+import { webMercatorTileSchema } from './earth/QuadtreeTileSchema';
+import { PSEUDOMERCATOR } from './earth/Ellipsoid';
+
 
 const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
 
-    console.log(SCENE_CAMERA);
+    const viewportWidth = 400, viewportHeight = 400;
+
+    const management = new SceneManagement({
+        camera: SCENE_CAMERA,
+        quadtreeTileSchema: webMercatorTileSchema,
+        ellipsoid: PSEUDOMERCATOR,
+        viewportWidth: viewportWidth,
+        viewportHeight: viewportHeight,
+    });
 
     const ctx: Context = new Context({
         selector: "GeoSketchpadConainter",
-        width: 400,
-        height: 400,
+        width: viewportWidth,
+        height: viewportHeight,
         devicePixelRatio: devicePixelRatio
     });
 
@@ -128,18 +140,20 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
         depthStencilAttachment: depthStencilAttachment,
     };
 
-    // 
-    {
-
-    }
-
     // raf
     {
-        const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
+        // const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
         const graph: OrderedGraph = new OrderedGraph(ctx);
         const renderLoop = () => {
-            graph.append(holder);
+            // cpu update scene
+            management.updateQuadtreeTileByDistanceError();
+            console.log(management.getVisualRevealTiles());
+
+            // gpu render
+            // graph.append(holder);
             graph.build();
+
+            // loop
             requestAnimationFrame(renderLoop);
         };
         requestAnimationFrame(renderLoop);

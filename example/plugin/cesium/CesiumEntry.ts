@@ -42,7 +42,10 @@ const cesiumEntry = async () => {
     SCENE_CAMERA = viewer.scene.camera;
     SCENE_CAMERA.setView({ destination: lnglat });
     SCENE_CAMERA.changed.addEventListener(() => {
-        console.log(SCENE_CAMERA);
+
+        const sseDenominator = (SCENE_CAMERA as any).frustum.sseDenominator;
+        // console.log(SCENE_CAMERA);
+        console.log(sseDenominator);
     });
 }
 
