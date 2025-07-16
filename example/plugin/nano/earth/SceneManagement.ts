@@ -3,9 +3,8 @@ import { webMercatorTileSchema, type QuadtreeTileSchema } from './QuadtreeTileSc
 import type { Ellipsoid } from './Ellipsoid';
 import { QuadtreeTile } from './QuadtreeTile';
 import { Vec3 } from 'pipegpu.matrix';
-import { GeodeticCoordinate } from './GeodeticCoordinate';
 
-const MAXIMUM_SCREEN_SPACEERROR = 2.0;
+const MAXIMUM_SCREEN_SPACEERROR = 16 * 16 * 16.0;
 
 class SceneManagement {
 
@@ -108,24 +107,57 @@ class SceneManagement {
         const rawQuadtreeTiles: QuadtreeTile[] = [];
         const renderingQuadtreeTiles: QuadtreeTile[] = [];
         // volume culling
-
         const cullingVolume = this.camera.frustum.computeCullingVolume(this.camera.position, this.camera.direction, this.camera.up);
-        const IntersectQuadtreeTile = (qTile: QuadtreeTile) => {
-            const boundingSphere = qTile.BoundingSphere;
-            const spacePosition = this.ellipsoid.geographicToSpace(new GeodeticCoordinate(boundingSphere[0], boundingSphere[1], boundingSphere[2]));
-            const radius = boundingSphere[3] * 30; //
+        const IntersectQuadtreeTile = (qTile: QuadtreeTile): boolean => {
+            let r = true;
+            const boundingBox = qTile.Boundary;
+            const corners = [boundingBox.Southwest, boundingBox.Southeast, boundingBox.Northwest, boundingBox.Northeast]
+                .map(corner => this.ellipsoid.geographicToSpace(corner));
+            // 计算AABB的最小/最大点
+            let minx: number, miny: number, minz: number;
+            let maxx: number, maxy: number, maxz: number;
+            minx = miny = minz = Number.MAX_VALUE;
+            maxx = maxy = maxz = -Number.MAX_VALUE;
+            corners.forEach(corner => {
+                minx = Math.min(minx, corner.x);
+                miny = Math.min(miny, corner.y);
+                minz = Math.min(minz, corner.z);
+                maxx = Math.max(maxx, corner.x);
+                maxy = Math.max(maxy, corner.y);
+                maxz = Math.max(maxz, corner.z);
+            });
+
+            for (const plane of cullingVolume.planes) {
+                const closestPoint = new Vec3().set(
+                    plane.x >= 0 ? minx : maxx,
+                    plane.y >= 0 ? miny : maxy,
+                    plane.z >= 0 ? minz : maxz
+                );
+                const distance = plane.x * closestPoint.x +
+                    plane.y * closestPoint.y +
+                    plane.z * closestPoint.z +
+                    plane.w;
+                if (distance < 0) {
+                    r = false;
+                }
+            }
+            return r;
         };
 
-        console.log(cullingVolume);
-
         //liter func, to calcute new tile in distance error
-        const liter = (quadtreeTile: QuadtreeTile) => {
+        const liter = (quadtreeTile: QuadtreeTile, deep: number) => {
             const error = this.computeSpaceError(quadtreeTile);
-            if (error > MAXIMUM_SCREEN_SPACEERROR) {
+            if (error > MAXIMUM_SCREEN_SPACEERROR && deep < 10) {
                 for (let i = 0; i < 4; i++) {
-                    // frustum culling. 
-                    // this.camera.frustum.computeCullingVolume
+                    const child = quadtreeTile.Children[i];
+                    if (IntersectQuadtreeTile(child)) {
+                        console.log(`${child.X}-${child.Y}-${child.Level}`);
+                        liter(child, deep++);
+                    }
+                    // console.log(IntersectQuadtreeTile(child));
+                    // if (IntersectQuadtreeTile(child)) {
                     // liter(quadtreeTile.Children[i]);
+                    // }
                 }
             }
             else {
@@ -137,7 +169,8 @@ class SceneManagement {
         //calcute from root tile
         for (let i = 0, len = rootTiles.length; i < len; i++) {
             const tile = rootTiles[i];
-            liter(tile);
+            let deep = 0;
+            liter(tile, deep);
         }
         //filter level of tile
         for (let i = 0, len = rawQuadtreeTiles.length; i < len; i++) {
@@ -145,7 +178,6 @@ class SceneManagement {
             if (quadtreeTile.Level === level) {
                 renderingQuadtreeTiles.push(quadtreeTile);
             }
-
         }
         this.level = level;
         this.visualRevealTiles = renderingQuadtreeTiles;

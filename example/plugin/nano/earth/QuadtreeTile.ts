@@ -26,12 +26,6 @@ class QuadtreeTile {
         this.boundary = this.quadtreeTileSchema.tileXYToRectangle(x, y, level);
     }
 
-    get BoundingSphere(): number[] {
-        const center = this.Boundary.Center;
-        const radius = Math.max(this.Boundary.Width, this.boundary.Height);
-        return [center.Longitude, center.Latitude, center.Altitude, radius];
-    }
-
     get X(): number {
         return this.x;
     }

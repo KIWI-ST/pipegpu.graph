@@ -31,11 +31,12 @@ import { fetchHDMF, type BoundingSphere, type Material, type MaterialType, type 
 import type { Handle1D, Handle2D } from 'pipegpu/src/res/buffer/BaseBuffer';
 import { SceneManagement } from './earth/SceneManagement';
 import { webMercatorTileSchema } from './earth/QuadtreeTileSchema';
-import { PSEUDOMERCATOR } from './earth/Ellipsoid';
+import { PSEUDOMERCATOR, WGS84 } from './earth/Ellipsoid';
 import { fetchJSON, type Instance, type InstanceDataPack } from '../../util/fetchJSON';
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from '../../util/fetchKTX';
 import { DebugMeshletComponent } from '../../../shaderGraph/component/DebugMeshletComponent';
 import type { Mat4, Vec4 } from 'pipegpu.matrix';
+import { GeodeticCoordinate } from './earth/GeodeticCoordinate';
 
 
 type InstanceDesc = {
@@ -53,12 +54,15 @@ type MeshDesc = {
 
 const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
 
+    // const r = WGS84.geographicToSpace(new GeodeticCoordinate(114.2978538661029179491913330511, 30.77193874122344863588183053804, 0));
+    // console.log(` ---- ${r} ---`);
+
     const viewportWidth = 400, viewportHeight = 400;
 
     const sceneManagement: SceneManagement = new SceneManagement({
         camera: SCENE_CAMERA,
         quadtreeTileSchema: webMercatorTileSchema,
-        ellipsoid: PSEUDOMERCATOR,
+        ellipsoid: WGS84,
         viewportWidth: viewportWidth,
         viewportHeight: viewportHeight,
     });

@@ -41,6 +41,14 @@ const cesiumEntry = async () => {
     viewer.canvas.style.width = `400px`;
     viewer.canvas.style.height = `400px`;
 
+    const r = viewer.scene.ellipsoid.cartographicToCartesian(new Cesium.Cartographic(
+        Cesium.Math.toRadians(114.2978538661029179491913330511),
+        Cesium.Math.toRadians(30.77193874122344863588183053804),
+        0
+    ));
+
+    console.log(r);
+
     SCENE_CAMERA = viewer.scene.camera;
     SCENE_CAMERA.setView({ destination: lnglat });
 }
