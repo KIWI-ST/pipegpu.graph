@@ -1,4 +1,4 @@
-import type { Vec4 } from "pipegpu.matrix";
+import { Vec3, type Vec4 } from "pipegpu.matrix";
 
 type MaterialType =
     | 'kMaterialPBR'
@@ -110,6 +110,22 @@ MATERIAL_TYPE_MAP.set(2 << 8 | 6, `kMaterialPhong6`);
 MATERIAL_TYPE_MAP.set(2 << 8 | 7, `kMaterialPhong7`);
 MATERIAL_TYPE_MAP.set(2 << 8 | 8, `kMaterialPhong8`);
 
+type BoundingSphere = {
+    cx: number,
+    cy: number,
+    cz: number,
+    r: number,
+}
+
+type AABB = {
+    minx: number,
+    miny: number,
+    minz: number,
+    maxx: number,
+    maxy: number,
+    maxz: number,
+}
+
 type Meshlet = {
     selfParentBounds: Float32Array,
     indices: Uint32Array,
@@ -117,7 +133,8 @@ type Meshlet = {
 
 type MeshDataPack = {
     meshId: string,
-    sphereBound: Vec4,
+    sphereBound: BoundingSphere,
+    aabb: AABB,
     vertices: Float32Array,
     meshlets: Array<Meshlet>,
     material:
@@ -152,10 +169,92 @@ type MeshDataPack = {
  */
 const computeBounds = (vertices: Float32Array, meshlets: Meshlet[]) => {
     const lerp: number = 9;
-    const size = vertices.length;
+    const aabb: AABB = {
+        minx: 0,
+        miny: 0,
+        minz: 0,
+        maxx: 0,
+        maxy: 0,
+        maxz: 0
+    };
+
+    type V3 = {
+        x: number,
+        y: number,
+        z: number
+    };
+
+    const min: V3 = {
+        x: Number.MAX_VALUE,
+        y: Number.MAX_VALUE,
+        z: Number.MAX_VALUE
+    };
+
+    const max: V3 = {
+        x: Number.MIN_VALUE,
+        y: Number.MIN_VALUE,
+        z: Number.MIN_VALUE
+    };
+
+    // AABB
+    meshlets.forEach(meshlet => {
+        meshlet.indices.forEach((k: number) => {
+            const p0 = k * lerp;
+            min.x = Math.min(vertices[p0], min.x);
+            min.y = Math.min(vertices[p0 + 1], min.y);
+            min.z = Math.min(vertices[p0 + 2], min.z);
+            max.x = Math.max(vertices[p0], max.x);
+            max.y = Math.max(vertices[p0 + 1], max.y);
+            max.z = Math.max(vertices[p0 + 2], max.z);
+        });
+    });
+
+    aabb.minx = min.x;
+    aabb.miny = min.y;
+    aabb.minz = min.z;
+    aabb.maxx = max.x;
+    aabb.maxy = max.y;
+    aabb.maxz = max.z;
+
+    // bounding sphere
+    const sphere: BoundingSphere = {
+        cx: 0,
+        cy: 0,
+        cz: 0,
+        r: Number.MIN_VALUE
+    };
+
+    sphere.cx = (min.x + max.x) / 2.0;
+    sphere.cy = (min.y + max.y) / 2.0;
+    sphere.cz = (min.z + max.z) / 2.0;
+
+    meshlets.forEach(meshlet => {
+        meshlet.indices.forEach((k: number) => {
+            const p0 = k * lerp;
+            const dx = vertices[p0] - sphere.cx;
+            const dy = vertices[p0 + 1] - sphere.cy;
+            const dz = vertices[p0 + 2] - sphere.cz;
+            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            sphere.r = Math.max(sphere.r, distance);
+        });
+    });
+
+    return {
+        sphere,
+        aabb
+    }
 }
 
-
+/**
+ * 
+ * @example
+ * const meshDataPack0: MeshDataPack = await fetchHDMF('/example/asset/hdmf/0010549f74c8f50e81b1fe5ea863abc7c2e0fe5bd48a46efbbbecf29a0215975.hdmf');
+ * console.log(meshDataPack0);
+ * 
+ * @param uri 
+ * @param key 
+ * @returns 
+ */
 const fetchHDMF = async (uri: string, key: string = ""): Promise<MeshDataPack> => {
     const response = await fetch(uri);
     if (!response.ok) {
@@ -196,8 +295,12 @@ const fetchHDMF = async (uri: string, key: string = ""): Promise<MeshDataPack> =
         meshlets.push(meshlet);
     }
 
+    const bounds = computeBounds(vertices, meshlets);
+
     const meshDataPack: MeshDataPack = {
         meshId: key,
+        sphereBound: bounds.sphere,
+        aabb: bounds.aabb,
         vertices: vertices,
         meshlets: meshlets,
         material: undefined,
@@ -330,6 +433,7 @@ const fetchHDMF = async (uri: string, key: string = ""): Promise<MeshDataPack> =
             throw new Error(`[E][fetchHDMF] missing support type. please check .hdmf materials.`);
     }
 
+
     // (meshDataPack.material as MaterialPBR).
     return meshDataPack;
 }
@@ -339,5 +443,6 @@ export {
     type Material, type MaterialPBR, type MaterialPBR1, type MaterialPBR2, type MaterialPBR3,
     type MaterialPhong, type MaterialPhong1, type MaterialPhong2, type MaterialPhong3, type MaterialPhong4, type MaterialPhong5, type MaterialPhong6, type MaterialPhong7, type MaterialPhong8,
     type MeshDataPack,
+    type AABB, type BoundingSphere,
     fetchHDMF
 }

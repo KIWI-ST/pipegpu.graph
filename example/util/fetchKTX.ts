@@ -18,6 +18,9 @@ interface KTXPackData {
 
 /**
  *
+ * @example
+ * const ktxPack: KTXPackData | undefined = await fetchKTX2AsBc7RGBA('/example/asset/container.ktx');
+ * 
  * ref:
  * https://github.khronos.org/KTX-Software/ktxjswrappers/libktx_js.html
  * @param uri

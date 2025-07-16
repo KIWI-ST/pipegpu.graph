@@ -1,4 +1,12 @@
 
+/**
+ * 
+ * @example
+ * const latitude: number = 30.593098;
+ * const longitude: number = 114.305392;
+ * const geoLocation: GeodeticCoordinate = new GeodeticCoordinate(longitude, latitude);
+ * 
+ */
 class GeodeticCoordinate {
 
     private alt: number;

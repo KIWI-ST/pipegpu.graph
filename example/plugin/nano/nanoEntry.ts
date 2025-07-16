@@ -27,7 +27,7 @@ import { PointLightSnippet } from '../../../shaderGraph/snippet/PointLightSnippe
 import { ViewSnippet } from '../../../shaderGraph/snippet/ViewSnippet';
 import { DebugSnippet } from '../../../shaderGraph/snippet/DebugSnippet';
 import { DebugMeshComponent } from '../../../shaderGraph/component/DebugMeshComponent';
-import { fetchHDMF, type Material, type MaterialType, type MeshDataPack } from '../../util/fetchHDMF';
+import { fetchHDMF, type BoundingSphere, type Material, type MaterialType, type MeshDataPack } from '../../util/fetchHDMF';
 import type { Handle1D, Handle2D } from 'pipegpu/src/res/buffer/BaseBuffer';
 import { SceneManagement } from './earth/SceneManagement';
 import { webMercatorTileSchema } from './earth/QuadtreeTileSchema';
@@ -44,22 +44,11 @@ type InstanceDesc = {
 };
 
 type MeshDesc = {
-    bounding_sphere: Vec4,
+    bounding_sphere: BoundingSphere,
     vertex_offset: number,
     mesh_id: number,
     meshlet_count: number,
     material_id: number
-};
-
-type VertexDesc = {
-    px: number,
-    py: number,
-    pz: number,
-    nx: number,
-    ny: number,
-    nz: number,
-    u: number,
-    v: number,
 };
 
 const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
@@ -317,31 +306,42 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
     // - material desc
     // - textures
     // TODO:: temporary cancellation of material support.
-    const instanceDescMap: Map<string, number>;
+    const instanceDescMap: Map<string, number> = new Map();
     const instanceDescArray: InstanceDesc[] = [];
-    const meshDescMap: Map<string, number>;
+    const meshDescMap: Map<string, number> = new Map();
     const meshDescArray: MeshDesc[] = [];
-    const vertexArray: VertexDesc[] = [];
-    const vertexOffset: number = 0;
+    const vertexArray: Float32Array[] = [];
+    const instanceOrderArray: Uint32Array[] = [];
+    let vertexOffset: number = 0;
     const AppendDataPack = async (instance: Instance, meshDataPack: MeshDataPack) => {
+        // TODO material push first.
         if (!meshDescMap.has(meshDataPack.meshId)) {
-            const meshId: number = meshDescArray.length;
-            meshDescMap.set(meshDataPack.meshId, meshId);
+            const meshRuntimeID: number = meshDescArray.length;
+            meshDescMap.set(meshDataPack.meshId, meshRuntimeID);
             meshDescArray.push({
-                bounding_sphere: null,
+                bounding_sphere: meshDataPack.sphereBound,
                 vertex_offset: vertexOffset,
-                mesh_id: meshId,
+                mesh_id: meshRuntimeID,
                 meshlet_count: meshDataPack.meshlets.length,
                 material_id: 0, // TODO material 
             });
+            // push to vertex array
+            vertexArray.push(meshDataPack.vertices);
+            vertexOffset += meshDataPack.vertices.byteLength;
         }
-
         if (!instanceDescMap.has(instance.id)) {
-            instanceDescMap.set(instance.id, instanceDescArray.length);
+            const instanceRuntimeID = instanceDescArray.length;
+            instanceDescMap.set(instance.id, instanceRuntimeID);
+            if (meshDescMap.has(instance.id)) {
+                throw new Error(`[E][AppendDataPack] mesh_id missing in meshDescMap, please check append order.`);
+            }
+            const meshId = meshDescMap.get(instance.mesh_id) as number;
             instanceDescArray.push({
                 model: instance.model,
-                mesh_id:
+                mesh_id: meshId,
             });
+            // push instance order array
+            instanceOrderArray.push(new Uint32Array([instanceRuntimeID]));
         }
     };
 
@@ -434,18 +434,73 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
     {
         let vertexBufferOffset = 0;
         const vertexBufferHandle: Handle2D = () => {
-
-
-            rewrite: boolean,
-                details: Array<{
-                    offset: number,
-                    byteLength: number,
-                    rawData: TypedArray1DFormat
-                }>
+            // vertex snippet align byte length is 32
+            if (vertexArray.length) {
+                const details: any = [];
+                let rawData = vertexArray.shift();
+                while (rawData) {
+                    details.push({
+                        byteLength: rawData.byteLength,
+                        offset: vertexBufferOffset,
+                        rawData: rawData,
+                    });
+                    vertexBufferOffset += rawData.byteLength;
+                    rawData = vertexArray.shift();
+                }
+                return {
+                    rewrite: true,
+                    details: details,
+                }
+            }
+            else {
+                return {
+                    rewrite: false,
+                    details: [],
+                }
+            }
         }
-        const vertexBuffer = vertexSnippet.getBuffer()
+        const vertexBuffer = vertexSnippet.getBuffer(vertexBufferHandle, ctx.getLimits().maxStorageBufferBindingSize);
+        desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
+    }
+
+    // instance order buffer
+    {
+        let instanceOrderBufferOffset = 0;
+        const instanceOrderBufferHandler: Handle2D = () => {
+            if (instanceOrderArray.length) {
+                const details: any = [];
+                let rawData = instanceOrderArray.shift();
+                while (rawData) {
+                    details.push({
+                        byteLength: rawData.byteLength,
+                        offset: instanceOrderBufferOffset,
+                        rawData: rawData,
+                    });
+                    instanceOrderBufferOffset += rawData.byteLength;
+                    rawData = instanceOrderArray.shift();
+                }
+                return {
+                    rewrite: true,
+                    details: details,
+                }
+            }
+            else {
+                return {
+                    rewrite: false,
+                    details: [],
+                }
+            }
+        }
+        // support 10,0000 entites rendering.
+        const instanceOrderBuffer = instanceOrderSnippet.getBuffer(instanceOrderBufferHandler, 100000 * 4);
+        desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), instanceOrderBuffer);
+    }
+
+    // instance desc buffer
+    {
 
     }
+
 
     // raf
     {

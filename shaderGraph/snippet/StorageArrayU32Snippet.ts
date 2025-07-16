@@ -1,5 +1,6 @@
 import { Compiler } from "pipegpu";
 import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
+import type { Handle2D } from "pipegpu/src/res/buffer/BaseBuffer";
 
 /**
  * 
@@ -11,6 +12,13 @@ class StorageArrayU32Snippet extends BaseSnippet {
      */
     constructor(compiler: Compiler) {
         super(compiler, 'storage_array_u32_snippet')
+    }
+
+    getBuffer = (handler: Handle2D, totalByteLength: number) => {
+        return this.compiler.createStorageBuffer({
+            totalByteLength: totalByteLength,
+            handler: handler
+        });
     }
 
     /**
