@@ -5,7 +5,7 @@ let SCENE_CAMERA: Cesium.Camera;
 const cesiumEntry = async () => {
     // 114.305392, 30.593098, 3000, wuhan
     // const lnglat = Cesium.Cartesian3.fromDegrees(114.305392, 30.593098, 3000);
-    const lnglat = Cesium.Cartesian3.fromDegrees(114.3078538661029179491913330511, 30.77193874122344863588183053804, 3000);
+    const lnglat = Cesium.Cartesian3.fromDegrees(114.2978538661029179491913330511, 30.77193874122344863588183053804, 200);
     Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzZWUzZWU5NC0wNjE4LTQ1Y2EtOGIxYS1kMWM5ZjhkYzE1M2EiLCJpZCI6NjI3OTIsImlhdCI6MTc0NDkzODc4NH0.W_zorWz5pbtH4ZLYql9ZWLgtp0hfIAPPZdF6IDAPzak";
     var viewer = new Cesium.Viewer("CesiumContainer", {

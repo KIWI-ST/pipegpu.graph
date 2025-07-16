@@ -134,7 +134,7 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
 
     // const WGSLCode: string = meshPhongComponent.build();
 
-    const rootDir = `http://127.0.0.1/output/BistroExterior/`;
+    const rootDir = `http://127.0.0.1/output/Azalea_LowPoly/`;
     const sceneTileMap: Map<string, InstanceDataPack> = new Map();  // instance data
     const sceneMeshMap: Map<string, MeshDataPack> = new Map();      // mesh desc and mesh vertex
     const sceneTextureMap: Map<string, KTXPackData> = new Map();    // texture
@@ -296,6 +296,7 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
                 }
                 // build pair:
                 // instance - mesh - material - textures
+                AppendDataPack(instancePack, meshPackData);
             });
         }
     };
@@ -400,22 +401,24 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
                 SCENE_CAMERA.frustum.projectionMatrix[14],
                 SCENE_CAMERA.frustum.projectionMatrix[15],
                 // view matrix
-                SCENE_CAMERA.viewMatrix[0],
-                SCENE_CAMERA.viewMatrix[1],
-                SCENE_CAMERA.viewMatrix[2],
-                SCENE_CAMERA.viewMatrix[3],
-                SCENE_CAMERA.viewMatrix[4],
-                SCENE_CAMERA.viewMatrix[5],
-                SCENE_CAMERA.viewMatrix[6],
-                SCENE_CAMERA.viewMatrix[7],
-                SCENE_CAMERA.viewMatrix[8],
-                SCENE_CAMERA.viewMatrix[9],
-                SCENE_CAMERA.viewMatrix[10],
-                SCENE_CAMERA.viewMatrix[11],
-                SCENE_CAMERA.viewMatrix[12],
-                SCENE_CAMERA.viewMatrix[13],
-                SCENE_CAMERA.viewMatrix[14],
-                SCENE_CAMERA.viewMatrix[15],
+                // inverseViewMatrix
+                // viewMatrix
+                SCENE_CAMERA.inverseViewMatrix[0],
+                SCENE_CAMERA.inverseViewMatrix[1],
+                SCENE_CAMERA.inverseViewMatrix[2],
+                SCENE_CAMERA.inverseViewMatrix[3],
+                SCENE_CAMERA.inverseViewMatrix[4],
+                SCENE_CAMERA.inverseViewMatrix[5],
+                SCENE_CAMERA.inverseViewMatrix[6],
+                SCENE_CAMERA.inverseViewMatrix[7],
+                SCENE_CAMERA.inverseViewMatrix[8],
+                SCENE_CAMERA.inverseViewMatrix[9],
+                SCENE_CAMERA.inverseViewMatrix[10],
+                SCENE_CAMERA.inverseViewMatrix[11],
+                SCENE_CAMERA.inverseViewMatrix[12],
+                SCENE_CAMERA.inverseViewMatrix[13],
+                SCENE_CAMERA.inverseViewMatrix[14],
+                SCENE_CAMERA.inverseViewMatrix[15],
             ]);
             return {
                 rewrite: true,
@@ -505,8 +508,8 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
                 let instanceDesc: InstanceDesc | undefined = instanceDescArray.shift();
                 while (instanceDesc) {
                     const buffer = new ArrayBuffer(80);
-                    const f32view = new Float32Array(buffer, 0, 16 * 4);
-                    const u32View = new Float32Array(buffer, f32view.byteLength, 4);
+                    const f32view = new Float32Array(buffer, 0, 16);
+                    const u32View = new Float32Array(buffer, f32view.byteLength, 1);
                     f32view.set([
                         instanceDesc.model.value[0], instanceDesc.model.value[1], instanceDesc.model.value[2], instanceDesc.model.value[3],
                         instanceDesc.model.value[4], instanceDesc.model.value[5], instanceDesc.model.value[6], instanceDesc.model.value[7],

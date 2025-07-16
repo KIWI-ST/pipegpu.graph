@@ -1,11 +1,16 @@
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from './util/fetchKTX';
 import { fetchHDMF, type MeshDataPack } from './util/fetchHDMF';
 import { nanoEntry } from './plugin/nano/nanoEntry';
-import { cesiumEntry, SCENE_CAMERA } from './plugin/cesium/CesiumEntry';
+import { cesiumEntry, SCENE_CAMERA } from './plugin/cesium/cesiumEntry';
 import { GeodeticCoordinate } from './plugin/nano/earth/GeodeticCoordinate';
 import { Ellipsoid, PSEUDOMERCATOR } from './plugin/nano/earth/Ellipsoid';
 
 (async () => {
+
+    {
+        const hdmf = await fetchHDMF(`http://127.0.0.1/output/Azalea_LowPoly/8bc8d8adeb08b02a2161dd2b06c67585621d4f9bb98e73279155d498f40e5d92.hdmf`, "8bc8d8adeb08b02a2161dd2b06c67585621d4f9bb98e73279155d498f40e5d92");
+        console.log(hdmf);
+    }
 
     // init cesium
     {

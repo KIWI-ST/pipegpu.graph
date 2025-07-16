@@ -3,6 +3,7 @@ import { webMercatorTileSchema, type QuadtreeTileSchema } from './QuadtreeTileSc
 import type { Ellipsoid } from './Ellipsoid';
 import { QuadtreeTile } from './QuadtreeTile';
 import { Vec3 } from 'pipegpu.matrix';
+import { GeodeticCoordinate } from './GeodeticCoordinate';
 
 const MAXIMUM_SCREEN_SPACEERROR = 2.0;
 
@@ -48,7 +49,7 @@ class SceneManagement {
 
     private initQuadTree = () => {
         const sseDenominator = this.SseDenominator = (this.camera as any).frustum.sseDenominator;
-        for (let i = 0; i < 22; i++) {
+        for (let i = 0; i <= 20; i++) {
             const geometricError = this.computeMaximumGeometricError(i);
             this.geometricError[i] = geometricError;
             this.maximumCameraHeight[i] = geometricError * this.viewportHeight / (sseDenominator * MAXIMUM_SCREEN_SPACEERROR);
@@ -57,8 +58,7 @@ class SceneManagement {
     }
 
     private computeMaximumGeometricError = (level: number) => {
-        const CRITICAL_VALUE = 128;
-        const maximumGeometricError = this.ellipsoid.MaximumRadius * Math.PI / (CRITICAL_VALUE * this.quadtreeTileSchema.getNumberOfXTilesAtLevel(level));
+        const maximumGeometricError = this.ellipsoid.MaximumRadius * Math.PI * 0.5 / (65 * this.quadtreeTileSchema.getNumberOfXTilesAtLevel(level));
         return maximumGeometricError;
     }
 
@@ -89,29 +89,15 @@ class SceneManagement {
         return pickedZeroLevelQuadtreeTiles;
     }
 
+    // ref
+    // https://github.com/CesiumGS/cesium/blob/main/packages/engine/Source/Scene/QuadtreePrimitive.js
     private computeSpaceError = (quadtreeTile: QuadtreeTile): number => {
         const level = quadtreeTile.Level,
             maxGeometricError = this.geometricError[level],
             sseDenominator = this.SseDenominator,
-            height = this.viewportHeight,
-            cameraSpacePosition = new Vec3().set(this.camera.position.x, this.camera.position.y, this.camera.position.z),
-            // bounds = quadtreeTile.Boundary.Bounds,
-            center = quadtreeTile.Boundary.Center;
-        //2.投影点与目标tile的球面距离+相机距离球面距离 bug
-        //2019/2/10 修正，改为与四角的距离取最大error
-        // let err = 0;
-        // for (let i = 0, len = bounds.length; i < len; i++) {
-        //     const spacePostion = g.Ellipsoid.geographicToSpace(bounds[i]);
-        //     const distance = cameraSpacePosition.clone().sub(spacePostion).len();
-        //     const error = (maxGeometricError * height) / (distance * sseDenominator);
-        //     err = error > err ? error : err;
-        // }
-        // return err;
-        const spacePosition = this.ellipsoid.geographicToSpace(center);
-        const distance = cameraSpacePosition.clone().sub(spacePosition).len();
-        //3.计算error
-        const err = (maxGeometricError * height) / (distance * sseDenominator);
-        return err;
+            height = this.viewportHeight;
+        const distance = this.camera.positionCartographic.height
+        return (maxGeometricError * height) / (distance * sseDenominator);
     }
 
     public updateQuadtreeTileByDistanceError = (): void => {
@@ -121,12 +107,25 @@ class SceneManagement {
         //wait rendering
         const rawQuadtreeTiles: QuadtreeTile[] = [];
         const renderingQuadtreeTiles: QuadtreeTile[] = [];
+        // volume culling
+
+        const cullingVolume = this.camera.frustum.computeCullingVolume(this.camera.position, this.camera.direction, this.camera.up);
+        const IntersectQuadtreeTile = (qTile: QuadtreeTile) => {
+            const boundingSphere = qTile.BoundingSphere;
+            const spacePosition = this.ellipsoid.geographicToSpace(new GeodeticCoordinate(boundingSphere[0], boundingSphere[1], boundingSphere[2]));
+            const radius = boundingSphere[3] * 30; //
+        };
+
+        console.log(cullingVolume);
+
         //liter func, to calcute new tile in distance error
         const liter = (quadtreeTile: QuadtreeTile) => {
             const error = this.computeSpaceError(quadtreeTile);
             if (error > MAXIMUM_SCREEN_SPACEERROR) {
                 for (let i = 0; i < 4; i++) {
-                    liter(quadtreeTile.Children[i]);
+                    // frustum culling. 
+                    // this.camera.frustum.computeCullingVolume
+                    // liter(quadtreeTile.Children[i]);
                 }
             }
             else {
