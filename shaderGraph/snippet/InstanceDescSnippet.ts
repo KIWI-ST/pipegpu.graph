@@ -1,3 +1,4 @@
+import type { Handle2D } from "pipegpu/src/res/buffer/BaseBuffer";
 import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
 import { Compiler, StorageBuffer, type TypedArray2DFormat } from "pipegpu";
 
@@ -18,11 +19,10 @@ class InstanceDescSnippet extends BaseSnippet {
      * @param rawData 
      * @returns 
      */
-    public getBuffer(rawData: TypedArray2DFormat): StorageBuffer {
-        const byteLength = this.getTypedArrayByteLength(rawData);
+    public getBuffer(handler: Handle2D, totalByteLength: number): StorageBuffer {
         const buffer: StorageBuffer = this.compiler.createStorageBuffer({
-            totalByteLength: byteLength,
-            rawData: rawData,
+            totalByteLength: totalByteLength,
+            handler: handler,
         });
         return buffer;
     }

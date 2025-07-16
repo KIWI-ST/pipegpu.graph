@@ -498,9 +498,50 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
 
     // instance desc buffer
     {
+        let instanceBufferOffset = 0;
+        const instanceBufferHandler: Handle2D = () => {
+            if (instanceDescArray.length) {
+                const details: any = [];
+                let instanceDesc: InstanceDesc | undefined = instanceDescArray.shift();
+                while (instanceDesc) {
+                    const buffer = new ArrayBuffer(80);
+                    const f32view = new Float32Array(buffer, 0, 16 * 4);
+                    const u32View = new Float32Array(buffer, f32view.byteLength, 4);
+                    f32view.set([
+                        instanceDesc.model.value[0], instanceDesc.model.value[1], instanceDesc.model.value[2], instanceDesc.model.value[3],
+                        instanceDesc.model.value[4], instanceDesc.model.value[5], instanceDesc.model.value[6], instanceDesc.model.value[7],
+                        instanceDesc.model.value[8], instanceDesc.model.value[9], instanceDesc.model.value[10], instanceDesc.model.value[11],
+                        instanceDesc.model.value[12], instanceDesc.model.value[13], instanceDesc.model.value[14], instanceDesc.model.value[15],
+                    ]);
+                    u32View.set([
+                        instanceDesc.mesh_id
+                    ]);
 
+
+                    details.push({
+                        byteLength: 80, // instance align byte length
+                        offset: instanceBufferOffset,
+                        rawData: buffer,
+                    });
+                    instanceBufferOffset += buffer.byteLength;
+                    instanceDesc = instanceDescArray.shift();
+                }
+                return {
+                    rewrite: true,
+                    details: details,
+                }
+            }
+            else {
+                return {
+                    rewrite: false,
+                    details: [],
+                }
+            }
+        }
+        // support 10,0000 entites rendering.
+        const instanceDescBuffer = instanceDescSnippet.getBuffer(instanceBufferHandler, 100000 * 80);
+        desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
     }
-
 
     // raf
     {
