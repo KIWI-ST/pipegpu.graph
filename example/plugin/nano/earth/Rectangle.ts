@@ -80,6 +80,10 @@ class Rectangle {
         east = east < west ? east + TWO_PI : east;
         return (lng > west || Math.abs(lng - west) <= EPSILON.EPSILON14) && (lng < east || Math.abs(lng - east) <= EPSILON.EPSILON14) && lat >= south && lat <= north;
     }
+
+    public Intersect = (rect: Rectangle): boolean => {
+        return (this.east >= rect.west && rect.east >= this.west && this.north >= rect.south && rect.north >= this.south);
+    }
 }
 
 export {
