@@ -6,7 +6,9 @@ import {
     Context,
     Attributes,
     Uniforms,
-    IndexedBuffer
+    IndexedBuffer,
+    UniformBuffer,
+    StorageBuffer
 } from 'pipegpu';
 
 import * as Cesium from 'cesium'
@@ -29,20 +31,23 @@ import { ViewSnippet } from '../../../shaderGraph/snippet/ViewSnippet';
 import { DebugSnippet } from '../../../shaderGraph/snippet/DebugSnippet';
 import { DebugMeshComponent } from '../../../shaderGraph/component/DebugMeshComponent';
 import { fetchHDMF, type BoundingSphere, type Material, type MaterialType, type MeshDataPack } from '../../util/fetchHDMF';
-import type { Handle1D, Handle2D } from 'pipegpu/src/res/buffer/BaseBuffer';
+import { MeshletDescSnippet } from '../../../shaderGraph/snippet/MeshletSnippet';
 import { SceneManagement } from './earth/SceneManagement';
 import { webMercatorTileSchema } from './earth/QuadtreeTileSchema';
 import { PSEUDOMERCATOR, WGS84 } from './earth/Ellipsoid';
 import { fetchJSON, type Instance, type InstanceDataPack } from '../../util/fetchJSON';
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from '../../util/fetchKTX';
 import { DebugMeshletComponent } from '../../../shaderGraph/component/DebugMeshletComponent';
-import { GLMatrix, type Mat4, type Vec4 } from 'pipegpu.matrix';
+import { GLMatrix, Vec4, type Mat4 } from 'pipegpu.matrix';
 import { GeodeticCoordinate } from './earth/GeodeticCoordinate';
-import { IndexedStorageBuffer } from 'pipegpu/src/res/buffer/IndexedStorageBuffer';
 
+import { IndexedStorageBuffer } from 'pipegpu/src/res/buffer/IndexedStorageBuffer';
+import type { IndexedIndirectBuffer } from 'pipegpu/src/res/buffer/IndexedIndirectBuffer';
+import type { Handle1D, Handle2D } from 'pipegpu/src/res/buffer/BaseBuffer';
+import { parseRenderDispatch } from 'pipegpu/src/compile/parseRenderDispatch';
 
 type InstanceDesc = {
-    model: Mat4
+    model: Mat4,
     mesh_id: number,
 };
 
@@ -51,15 +56,36 @@ type MeshDesc = {
     vertex_offset: number,
     mesh_id: number,
     meshlet_count: number,
-    material_id: number
+    material_id: number,
 };
 
-const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
+type MeshletDesc = {
+    self_bounding_sphere: Vec4,
+    parent_bounding_sphere: Vec4,
+    self_error: number,
+    parent_error: number,
+    cluster_id: number,
+    mesh_id: number,
+    index_count: number,
+    index_offset: number,
+};
+
+const nanoEntry = async (
+    SCENE_CAMERA: Cesium.Camera,
+    opts: {
+        lng: number,
+        lat: number,
+        alt: number
+    }
+) => {
+
+    const lng: number = opts.lng || 116.3955392;
+    const lat: number = opts.lat || 39.916;
+    const alt: number = opts.alt || 0;
+    const spacePosition = Cesium.Cartesian3.fromDegrees(lng, lat, alt);
+    const serverModelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(spacePosition);
 
     {
-        const spacePosition = Cesium.Cartesian3.fromDegrees(116.3955392, 39.916, 0);
-        const serverModelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(spacePosition);
-
         const projection_matrix = Cesium.Matrix4.fromArray([
             1.7320508075688774,
             0,
@@ -199,6 +225,7 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
     const pointLightSnippet: PointLightSnippet = new PointLightSnippet(compiler);
     const viewSnippet: ViewSnippet = new ViewSnippet(compiler);
     const indexedStorageSnippet = new StorageIndexSnippet(compiler);
+    const meshletDescSnippet = new MeshletDescSnippet(compiler);
 
     // const meshPhongComponent: DebugMeshComponent = new DebugMeshComponent(
     //     ctx,
@@ -396,11 +423,18 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
     const instanceDescArray: InstanceDesc[] = [];
     const meshDescMap: Map<string, number> = new Map();
     const meshDescArray: MeshDesc[] = [];
+    const meshletDescArray: MeshletDesc[] = [];
     const vertexArray: Float32Array[] = [];
+    const indexedArray: Uint32Array[] = [];
     const instanceOrderArray: Uint32Array[] = [];
     let vertexOffset: number = 0;
+    let meshletIndexedOffset: number = 0;
+
+    // instance -> mesh_id -> meshPack -> meshlet info
+    // idea. samply store pair of <instance id, mesih id, meshlet array>
+
     const AppendDataPack = async (instance: Instance, meshDataPack: MeshDataPack) => {
-        // TODO material push first.
+        // meshdesc and meshlet desc
         if (!meshDescMap.has(meshDataPack.meshId)) {
             const meshRuntimeID: number = meshDescArray.length;
             meshDescMap.set(meshDataPack.meshId, meshRuntimeID);
@@ -413,6 +447,23 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
             });
             // push to vertex array
             vertexArray.push(meshDataPack.vertices);
+            meshDataPack.meshlets.forEach(meshlet => {
+                const meshletID = meshletDescArray.length;
+                const meshletDesc: MeshletDesc = {
+                    self_bounding_sphere: new Vec4().set(meshlet.selfParentBounds[0], meshlet.selfParentBounds[1], meshlet.selfParentBounds[2], meshlet.selfParentBounds[3]),
+                    parent_bounding_sphere: new Vec4().set(meshlet.selfParentBounds[5], meshlet.selfParentBounds[6], meshlet.selfParentBounds[7], meshlet.selfParentBounds[8]),
+                    self_error: meshlet.selfParentBounds[4],
+                    parent_error: meshlet.selfParentBounds[9],
+                    cluster_id: meshletID,
+                    mesh_id: meshRuntimeID,
+                    index_count: meshlet.indices.length,
+                    index_offset: meshletIndexedOffset,
+                };
+                indexedArray.push(meshlet.indices);
+                meshletDescArray.push(meshletDesc);
+                meshletIndexedOffset += meshlet.indices.length;
+            });
+            // meshletArray.push(mesh)
             vertexOffset += meshDataPack.vertices.byteLength;
         }
         if (!instanceDescMap.has(instance.id)) {
@@ -431,7 +482,7 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
         }
     };
 
-    // draw meshlet shader
+    // draw meshlet shader.
     const debugMeshletComponent: DebugMeshletComponent = new DebugMeshletComponent(
         ctx,
         compiler,
@@ -447,31 +498,8 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
 
     const WGSLCode = debugMeshletComponent.build();
 
-
-
-
-
-
-
-
-    let desc: RenderHolderDesc = {
-        label: '[DEMO][render]',
-        vertexShader: compiler.createVertexShader({
-            code: WGSLCode,
-            entryPoint: "vs_main"
-        }),
-        fragmentShader: compiler.createFragmentShader({
-            code: WGSLCode,
-            entryPoint: "fs_main"
-        }),
-        attributes: new Attributes(),
-        uniforms: new Uniforms(),
-        // dispatch: new RenderProperty(6, 1),
-        colorAttachments: colorAttachments,
-        depthStencilAttachment: depthStencilAttachment,
-    };
-
-    // view projection matrix
+    // view projection matrix.
+    let viewProjectionBuffer: UniformBuffer;
     {
         const viewProjectionHandler: Handle1D = () => {
             const rawData = new Float32Array([
@@ -521,11 +549,11 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
                 }
             }
         };
-        const viewProjectionBuffer = viewProjectionSnippet.getBuffer(viewProjectionHandler);
-        desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), viewProjectionBuffer);
+        viewProjectionBuffer = viewProjectionSnippet.getBuffer(viewProjectionHandler);
     }
 
-    // vertex buffer
+    // vertex buffer.
+    let vertexBuffer: StorageBuffer;
     {
         let vertexBufferOffset = 0;
         const vertexBufferHandle: Handle2D = () => {
@@ -554,11 +582,11 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
                 }
             }
         }
-        const vertexBuffer = vertexSnippet.getBuffer(vertexBufferHandle, ctx.getLimits().maxStorageBufferBindingSize);
-        desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
+        vertexBuffer = vertexSnippet.getBuffer(vertexBufferHandle, ctx.getLimits().maxStorageBufferBindingSize);
     }
 
-    // instance order buffer
+    // instance order buffer, map random culled instance with real id.
+    let instanceOrderBuffer: StorageBuffer;
     {
         let instanceOrderBufferOffset = 0;
         const instanceOrderBufferHandler: Handle2D = () => {
@@ -587,20 +615,19 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
             }
         }
         // support 10,0000 entites rendering.
-        const instanceOrderBuffer = instanceOrderSnippet.getBuffer(instanceOrderBufferHandler, 100000 * 4);
-        desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), instanceOrderBuffer);
+        instanceOrderBuffer = instanceOrderSnippet.getBuffer(instanceOrderBufferHandler, 100000 * 4);
     }
 
-    // instance desc buffer
+    // instance desc
+    let instanceDescBuffer: StorageBuffer;
+    let indexedIndirectBuffer: IndexedIndirectBuffer;
     {
         let instanceDescBufferOffset = 0;
         const instanceDescBufferHandler: Handle2D = () => {
             if (instanceDescArray.length) {
                 const details: any = [];
                 let instanceDesc: InstanceDesc | undefined = instanceDescArray.shift();
-                // serverModelMatrix
                 while (instanceDesc) {
-
                     let instanceMatrix = new Cesium.Matrix4(
                         instanceDesc.model.value[0], instanceDesc.model.value[1], instanceDesc.model.value[2], instanceDesc.model.value[3],
                         instanceDesc.model.value[4], instanceDesc.model.value[5], instanceDesc.model.value[6], instanceDesc.model.value[7],
@@ -642,10 +669,93 @@ const nanoEntry = async (SCENE_CAMERA: Cesium.Camera) => {
                 }
             }
         }
-        // support 10,0000 entites rendering.
-        const instanceDescBuffer = instanceDescSnippet.getBuffer(instanceDescBufferHandler, 100000 * 80);
-        desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
+        instanceDescBuffer = instanceDescSnippet.getBuffer(instanceDescBufferHandler, 100000 * 80);
     }
+
+    // indexed storage buffer.
+    let indexedStorageBuffer: IndexedStorageBuffer;
+    {
+        let indexedStorageBufferOffset = 0;
+        const indexedStorageBufferHandler: Handle2D = () => {
+            if (indexedArray.length) {
+                const details: any = [];
+                let rawData: Uint32Array | undefined = indexedArray.shift();
+                while (rawData) {
+                    details.push({
+                        byteLength: rawData.byteLength, // instance align byte length
+                        offset: indexedStorageBufferOffset,
+                        rawData: rawData,
+                    });
+                    rawData = indexedArray.shift();
+                }
+                return {
+                    rewrite: true,
+                    details: details,
+                }
+            } else {
+                return {
+                    rewrite: false,
+                    details: [],
+                };
+            }
+        }
+        indexedStorageBuffer = compiler.createIndexedStorageBuffer({
+            totalByteLength: ctx.getLimits().maxStorageBufferBindingSize,
+            handler: indexedStorageBufferHandler,
+        });
+    }
+
+    let indirectDrawCountBuffer: StorageBuffer;
+    {
+        indirectDrawCountBuffer = compiler.createStorageBuffer({
+            totalByteLength: 4,
+            rawData: [new Uint32Array(1024)],
+            bufferUsageFlags: GPUBufferUsage.INDIRECT
+        });
+    }
+
+
+    // 
+
+    let meshletDescBuffer: StorageBuffer;
+    {
+        let indexedIndirectBufferOffset = 0;
+        let drawIndexedIndirect
+    }
+
+
+
+
+    let dispatch: RenderProperty = new RenderProperty(indexedStorageBuffer, indexedIndirectBuffer, indirectDrawCountBuffer, 100);
+
+
+
+
+
+    let desc: RenderHolderDesc = {
+        label: '[DEMO][render]',
+        vertexShader: compiler.createVertexShader({
+            code: WGSLCode,
+            entryPoint: "vs_main"
+        }),
+        fragmentShader: compiler.createFragmentShader({
+            code: WGSLCode,
+            entryPoint: "fs_main"
+        }),
+        attributes: new Attributes(),
+        uniforms: new Uniforms(),
+        // dispatch: new RenderProperty(6, 1),
+        colorAttachments: colorAttachments,
+        depthStencilAttachment: depthStencilAttachment,
+    };
+
+    desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), viewProjectionBuffer);
+    desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
+    desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), instanceOrderBuffer);
+    desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
+
+
+
 
     // ref:https://github.com/KIWI-ST/pipegpu/blob/main/example/tech/initMultiDrawIndexedIndirect.ts
     // indirect draw count buffer

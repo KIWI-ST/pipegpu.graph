@@ -1,10 +1,6 @@
 import { Rectangle } from "./Rectangle";
 import { QuadtreeTileSchema } from "./QuadtreeTileSchema";
 
-/**
- * 四叉树形式的Tile组织，用于快速检索瓦片信息
- * @class
- */
 class QuadtreeTile {
     private parent?: QuadtreeTile;
     private boundary: Rectangle;
