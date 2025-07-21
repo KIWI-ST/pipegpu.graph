@@ -1,14 +1,14 @@
 import * as Cesium from 'cesium'
-import { webMercatorTileSchema, type QuadtreeTileSchema } from './QuadtreeTileSchema';
-import type { Ellipsoid } from './Ellipsoid';
-import { QuadtreeTile } from './QuadtreeTile';
+import { webMercatorTileSchema, type QuadtreeTileSchema } from './earth/QuadtreeTileSchema';
+import type { Ellipsoid } from './earth/Ellipsoid';
+import { QuadtreeTile } from './earth/QuadtreeTile';
 import { GLMatrix, Vec3 } from 'pipegpu.matrix';
-import { Rectangle } from './Rectangle';
-import { GeodeticCoordinate } from './GeodeticCoordinate';
+import { Rectangle } from './earth/Rectangle';
+import { GeodeticCoordinate } from './earth/GeodeticCoordinate';
 
 const MAXIMUM_SCREEN_SPACEERROR = 2.0;
 
-class SceneManagement {
+class EarthManager {
 
     private camera: Cesium.Camera;
     private quadtreeTileSchema: QuadtreeTileSchema;
@@ -171,5 +171,5 @@ class SceneManagement {
 }
 
 export {
-    SceneManagement
+    EarthManager
 }

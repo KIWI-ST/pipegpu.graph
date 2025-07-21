@@ -32,7 +32,7 @@ import { DebugSnippet } from '../../../shaderGraph/snippet/DebugSnippet';
 import { DebugMeshComponent } from '../../../shaderGraph/component/DebugMeshComponent';
 import { fetchHDMF, type BoundingSphere, type Material, type MaterialType, type MeshDataPack } from '../../util/fetchHDMF';
 import { MeshletDescSnippet } from '../../../shaderGraph/snippet/MeshletSnippet';
-import { SceneManagement } from './earth/SceneManagement';
+import { EarthManager } from './EarthManager';
 import { webMercatorTileSchema } from './earth/QuadtreeTileSchema';
 import { PSEUDOMERCATOR, WGS84 } from './earth/Ellipsoid';
 import { fetchJSON, type Instance, type InstanceDataPack } from '../../util/fetchJSON';
@@ -79,9 +79,9 @@ const nanoEntry = async (
     }
 ) => {
 
-    const lng: number = opts.lng || 116.3955392;
-    const lat: number = opts.lat || 39.916;
-    const alt: number = opts.alt || 0;
+    const lng: number = opts?.lng || 116.3955392;
+    const lat: number = opts?.lat || 39.916;
+    const alt: number = opts?.alt || 0;
     const spacePosition = Cesium.Cartesian3.fromDegrees(lng, lat, alt);
     const serverModelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(spacePosition);
 
@@ -165,8 +165,7 @@ const nanoEntry = async (
     // console.log(` ---- ${r} ---`);
 
     const viewportWidth = 400, viewportHeight = 400;
-
-    const sceneManagement: SceneManagement = new SceneManagement({
+    const sceneManager: EarthManager = new EarthManager({
         camera: SCENE_CAMERA,
         quadtreeTileSchema: webMercatorTileSchema,
         ellipsoid: WGS84,
@@ -189,6 +188,7 @@ const nanoEntry = async (
         canvas.style.left = `400px`;
         canvas.style.position = `fixed`;
     }
+
     // color attachment
     const surfaceTexture = compiler.createSurfaceTexture2D();
     const surfaceColorAttachment = compiler.createColorAttachment({
@@ -197,6 +197,7 @@ const nanoEntry = async (
         colorLoadStoreFormat: 'clearStore',
         clearColor: [0.0, 0.0, 0.0, 1.0]
     });
+
     const colorAttachments: ColorAttachment[] = [surfaceColorAttachment];
 
     // depth stencil attachment
@@ -205,6 +206,7 @@ const nanoEntry = async (
         height: ctx.getViewportHeight(),
         textureFormat: ctx.getPreferredDepthTexuteFormat(),
     });
+
     const depthStencilAttachment = compiler.createDepthStencilAttachment({
         texture: depthTexture
     });
@@ -252,7 +254,7 @@ const nanoEntry = async (
     const sceneTextureMap: Map<string, KTXPackData> = new Map();    // texture
     const sceneTaskLimit = 3;
     const UpdateSceneCPUData = async () => {
-        const visualRevealTiles = sceneManagement.getVisualRevealTiles();
+        const visualRevealTiles = sceneManager.getVisualRevealTiles();
         let remain = sceneTaskLimit;
         let tile = visualRevealTiles?.shift();
         const tileKey = `${rootDir}${tile?.X}_${tile?.Y}_${tile?.Level}.json`;
@@ -432,7 +434,6 @@ const nanoEntry = async (
 
     // instance -> mesh_id -> meshPack -> meshlet info
     // idea. samply store pair of <instance id, mesih id, meshlet array>
-
     const AppendDataPack = async (instance: Instance, meshDataPack: MeshDataPack) => {
         // meshdesc and meshlet desc
         if (!meshDescMap.has(meshDataPack.meshId)) {
@@ -469,7 +470,7 @@ const nanoEntry = async (
         if (!instanceDescMap.has(instance.id)) {
             const instanceRuntimeID = instanceDescArray.length;
             instanceDescMap.set(instance.id, instanceRuntimeID);
-            if (meshDescMap.has(instance.id)) {
+            if (!meshDescMap.has(instance.mesh_id)) {
                 throw new Error(`[E][AppendDataPack] mesh_id missing in meshDescMap, please check append order.`);
             }
             const meshId = meshDescMap.get(instance.mesh_id) as number;
@@ -650,7 +651,8 @@ const nanoEntry = async (
                         instanceDesc.mesh_id
                     ]);
                     details.push({
-                        byteLength: 80, // instance align byte length
+                        // instance align byte length
+                        byteLength: 80,
                         offset: instanceDescBufferOffset,
                         rawData: buffer,
                     });
@@ -716,21 +718,13 @@ const nanoEntry = async (
 
 
     // 
-
     let meshletDescBuffer: StorageBuffer;
     {
         let indexedIndirectBufferOffset = 0;
         let drawIndexedIndirect
     }
 
-
-
-
     let dispatch: RenderProperty = new RenderProperty(indexedStorageBuffer, indexedIndirectBuffer, indirectDrawCountBuffer, 100);
-
-
-
-
 
     let desc: RenderHolderDesc = {
         label: '[DEMO][render]',
@@ -744,7 +738,7 @@ const nanoEntry = async (
         }),
         attributes: new Attributes(),
         uniforms: new Uniforms(),
-        // dispatch: new RenderProperty(6, 1),
+        dispatch: dispatch,
         colorAttachments: colorAttachments,
         depthStencilAttachment: depthStencilAttachment,
     };
@@ -753,9 +747,6 @@ const nanoEntry = async (
     desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
     desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), instanceOrderBuffer);
     desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
-
-
-
 
     // ref:https://github.com/KIWI-ST/pipegpu/blob/main/example/tech/initMultiDrawIndexedIndirect.ts
     // indirect draw count buffer
@@ -775,7 +766,7 @@ const nanoEntry = async (
 
     // raf
     {
-        sceneManagement.updateQuadtreeTileByDistanceError();
+        sceneManager.updateQuadtreeTileByDistanceError();
 
         const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
         const graph: OrderedGraph = new OrderedGraph(ctx);
