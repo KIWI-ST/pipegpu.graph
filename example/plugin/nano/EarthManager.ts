@@ -145,7 +145,6 @@ class EarthManager {
             const quadtreeTile = rawQuadtreeTiles[i];
             if (quadtreeTile.Level === level) {
                 renderingQuadtreeTiles.push(quadtreeTile);
-                console.log(`${quadtreeTile.X}-${quadtreeTile.Y}-${quadtreeTile.Level}`);
             }
         }
         this.level = level;

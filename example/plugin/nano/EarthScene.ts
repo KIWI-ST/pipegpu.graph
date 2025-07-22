@@ -7,7 +7,7 @@ import { fetchJSON, type Instance, type InstanceDataPack } from "../../util/fetc
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from "../../util/fetchKTX";
 import { webMercatorTileSchema } from "./earth/QuadtreeTileSchema";
 import { WGS84 } from "./earth/Ellipsoid";
-import type { Compiler, Context, StorageBuffer, UniformBuffer } from "pipegpu";
+import type { Compiler, Context, IndexedIndirectBuffer, StorageBuffer, UniformBuffer, UniformHandle } from "pipegpu";
 import type { IndexedStorageBuffer } from "pipegpu/src/res/buffer/IndexedStorageBuffer";
 import type { Handle1D, Handle2D } from "pipegpu/src/res/buffer/BaseBuffer";
 
@@ -73,28 +73,30 @@ class EarthScene {
     private vertexQueue: Float32Array[] = [];
     private indexedQueue: Uint32Array[] = [];
     private instanceOrderQueue: Uint32Array[] = [];
-    private drawIndexedIndirectQueue: Uint32Array[] = [];
+    private indexedIndirectQueue: Uint32Array[] = [];
 
     private vertexOffset: number = 0;
     private meshletIndexedOffset: number = 0;
     private indexOffset: number = 0;
 
-    private viewProjectionBuffer: UniformBuffer;                // 视域矩阵 buffer          -- done
-    private vertexBuffer: StorageBuffer;                        // 密集型顶点 buffer        -- done
-    private instanceOrderBuffer: StorageBuffer;                 // 实例顺序 buffer          -- done
-    private instanceDescBuffer: StorageBuffer;                  // 实例描述 buffer          -- done
-    private meshDescBuffer: StorageBuffer;                      // 物件描述 buffer          -- done    
-    private meshletDescBuffer: StorageBuffer;                   // 簇描述 buffer            -- done
-    private indexedIndirectBuffer: StorageBuffer;               // 间接绘制命令 buffer
-    private indexedStoragebuffer: IndexedStorageBuffer;         // 索引
-    private indirectDrawCountBuffer: StorageBuffer;             // 间接命令绘制数量 buffer
-    private maxDrawCount: number;                               // 间接绘制命令执行最大数量
+    private viewProjectionBuffer!: UniformBuffer;                // 视域矩阵 buffer          -- done
+    private vertexBuffer!: StorageBuffer;                        // 密集型顶点 buffer        -- done
+    private instanceOrderBuffer!: StorageBuffer;                 // 实例顺序 buffer          -- done
+    private instanceDescBuffer!: StorageBuffer;                  // 实例描述 buffer          -- done
+    private meshDescBuffer!: StorageBuffer;                      // 物件描述 buffer          -- done    
+    private meshletDescBuffer!: StorageBuffer;                   // 簇描述 buffer            -- done
+    private indexedIndirectBuffer!: IndexedIndirectBuffer;               // 间接绘制命令 buffer       -- done
+    private indexedStoragebuffer!: IndexedStorageBuffer;         // 索引                      -- done
+    private indirectDrawCountBuffer!: StorageBuffer;             // 间接命令绘制数量 buffer
+    private maxDrawCount: number = 0;                            // 间接绘制命令执行最大数量
 
     private sceneVertexBufferOffset: number = 0;                // 场景级顶点缓冲偏移
     private sceneInstanceOrderBufferOffset: number = 0;         // 场景级实例缓冲偏移
     private sceneInstanceDescBufferOffset: number = 0;          // 场景实例描述缓冲偏移
     private sceneMeshDescBufferOffset: number = 0;              // 场景物件描述缓冲偏移
     private sceneMeshletBufferOffset: number = 0;               // 场景簇缓冲偏移
+    private sceneIndexedIndirectBufferOffset: number = 0;       // 常见间接绘制缓冲偏移
+    private sceneIndexedStorageBufferOffset: number = 0;        // 场景索引缓冲偏移
 
     private maxInstanceNum = 100000;                             // 最大物件数
 
@@ -395,6 +397,94 @@ class EarthScene {
         });
     }
 
+    private initIndexedIndirectBuffer = () => {
+        const handler: Handle2D = () => {
+            if (this.indexedIndirectQueue.length) {
+                const details: any = [];
+                let indexedIndirect = this.indexedIndirectQueue.shift();
+                while (indexedIndirect) {
+                    details.push({
+                        byteLength: indexedIndirect.byteLength,
+                        offset: this.sceneIndexedIndirectBufferOffset,
+                        rawData: indexedIndirect,
+                    });
+                    this.sceneIndexedIndirectBufferOffset += indexedIndirect.byteLength;
+                    indexedIndirect = this.indexedIndirectQueue.shift();
+                }
+                return {
+                    rewrite: true,
+                    details: details,
+                }
+            }
+            else {
+                return {
+                    rewrite: false,
+                    details: [],
+                }
+            }
+        }
+        // 支持最大十万级物件渲染
+        // indirect 长度无法估计，使用最大 buffer size
+        this.indexedIndirectBuffer = this.compiler.createIndexedIndirectBuffer({
+            totalByteLength: this.context.getLimits().maxStorageBufferBindingSize,
+            handler: handler
+        });
+    }
+
+    private initIndexedStorageBuffer = () => {
+        const handler: Handle2D = () => {
+            if (this.indexedQueue.length) {
+                const details: any = [];
+                let indexed = this.indexedQueue.shift();
+                while (indexed) {
+                    details.push({
+                        byteLength: indexed.byteLength,
+                        offset: this.sceneIndexedStorageBufferOffset,
+                        rawData: indexed,
+                    });
+                    this.sceneIndexedStorageBufferOffset += indexed.byteLength;
+                    indexed = this.indexedIndirectQueue.shift();
+                }
+                return {
+                    rewrite: true,
+                    details: details,
+                }
+            }
+            else {
+                return {
+                    rewrite: false,
+                    details: [],
+                }
+            }
+        }
+        // 支持最大十万级物件渲染
+        // indirect 长度无法估计，使用最大 buffer size
+        this.indexedStoragebuffer = this.compiler.createIndexedStorageBuffer({
+            totalByteLength: this.context.getLimits().maxStorageBufferBindingSize,
+            handler: handler
+        });
+    }
+
+    private initIndirectDrawCountBuffer = () => {
+        const handler: Handle2D = () => {
+            const details: any = [];
+            details.push({
+                byteLength: 4,
+                offset: 0,
+                rawData: new Uint32Array([this.maxDrawCount]),
+            });
+            return {
+                rewrite: true,
+                details: details,
+            }
+        }
+        this.indirectDrawCountBuffer = this.compiler.createStorageBuffer({
+            totalByteLength: 4,
+            handler: handler,
+            bufferUsageFlags: GPUBufferUsage.INDIRECT,
+        });
+    }
+
     private initGpuBuffers = () => {
         this.initViewPorjectionBuffer();
         this.initVertexBuffer();
@@ -402,6 +492,9 @@ class EarthScene {
         this.initInstanceDescBuffer();
         this.initMeshDescBuffer();
         this.initMeshletDescBuffer();
+        this.initIndexedIndirectBuffer();
+        this.initIndexedStorageBuffer();
+        this.initIndirectDrawCountBuffer();
     }
 
     private statsMeshletIndicesNum = (meshDataPack: MeshDataPack) => {
@@ -417,7 +510,7 @@ class EarthScene {
         // mesh 判断，如果 mesh 未添加，则添加并获取运行时ID
         // mesh 未添加则对应的 meshlet 也未添加
         // 添加 mesh desc 和 meshlet desc
-        if (this.meshDescRuntimeMap.has(meshDataPack.meshId)) {
+        if (!this.meshDescRuntimeMap.has(meshDataPack.meshId)) {
             const meshDescRuntimeID: number = this.meshDescCursor;
             this.meshDescRuntimeMap.set(meshDataPack.meshId, {
                 runtimeID: meshDescRuntimeID
@@ -488,7 +581,10 @@ class EarthScene {
                 const diibData = new Uint32Array([
                     diib.index_count, diib.instance_count, diib.first_index, diib.vertex_offset, instanceRuntimeID
                 ]);
-                this.drawIndexedIndirectQueue.push(diibData);
+                this.indexedIndirectQueue.push(diibData);
+                // 一个 meshlet 对应一个 indexed indirect draw command.
+                // 一个 meshlet 对应一个 draw count.
+                this.maxDrawCount++;
             });
             this.instanceOrderQueue.push(new Uint32Array([instanceRuntimeID]));
             this.instanceDescCursor++;  // 处理 instance 偏移
@@ -496,8 +592,11 @@ class EarthScene {
     }
 
     // update cpu stage data.
-    public updateCPUSceneData = async () => {
+    public updateSceneData = async () => {
         const visualRevealTiles = this.earthManager.getVisualRevealTiles();
+        if (!visualRevealTiles) {
+            return;
+        }
         let remain = this.sceneTaskLimit;
         let tile = visualRevealTiles?.shift();
         const tileKey = `${this.rootUri}${tile?.X}_${tile?.Y}_${tile?.Level}.json`;
@@ -629,12 +728,49 @@ class EarthScene {
         }
     }
 
-    // updat gpu stage data.
-    // deal with queue
-    public updateGPUSceneData = async () => {
-
+    public forceUpdateSceneManager = () => {
+        this.earthManager.updateQuadtreeTileByDistanceError();
     }
 
+    public get ViewProjectionBuffer(): UniformBuffer {
+        return this.viewProjectionBuffer;
+    }
+
+    public get VertexBuffer(): StorageBuffer {
+        return this.vertexBuffer;
+    }
+
+    public get InstanceOrderBuffer(): StorageBuffer {
+        return this.instanceOrderBuffer;
+    }
+
+    public get InstanceDescBuffer(): StorageBuffer {
+        return this.instanceDescBuffer;
+    }
+
+    public get MeshDescBuffer(): StorageBuffer {
+        return this.meshDescBuffer;
+    }
+
+    public get MeshletDescBuffer(): StorageBuffer {
+        return this.meshletDescBuffer;
+    }
+
+    public get IndexedIndirectBuffer(): IndexedIndirectBuffer {
+        return this.indexedIndirectBuffer;
+    }
+
+    public get IndexedStoragebuffer(): IndexedStorageBuffer {
+        return this.indexedStoragebuffer;
+    }
+
+    public get IndirectDrawCountBuffer(): StorageBuffer {
+        return this.indirectDrawCountBuffer
+    }
+
+    public get MaxDrawCount(): number {
+        return this.maxDrawCount;
+    }
 
 }
 
