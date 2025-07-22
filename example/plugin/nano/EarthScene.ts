@@ -43,6 +43,14 @@ type DrawIndexedIndirect = {
     first_instance: number,
 };
 
+type DebugVertex = {
+    x: number,
+    y: number,
+    z: number,
+};
+
+const debugVertices: DebugVertex[] = [];
+
 class EarthScene {
 
     private compiler: Compiler;
@@ -65,7 +73,7 @@ class EarthScene {
     private rootUri: string;
     private syncCamera: Cesium.Camera;
     private earthManager: EarthManager;
-    private sceneTaskLimit: number = 3;
+    private sceneTaskLimit: number = 1;
 
     private instanceDescQueue: InstanceDesc[] = [];
     private meshDescQueue: MeshDesc[] = [];
@@ -85,18 +93,18 @@ class EarthScene {
     private instanceDescBuffer!: StorageBuffer;                  // 实例描述 buffer          -- done
     private meshDescBuffer!: StorageBuffer;                      // 物件描述 buffer          -- done    
     private meshletDescBuffer!: StorageBuffer;                   // 簇描述 buffer            -- done
-    private indexedIndirectBuffer!: IndexedIndirectBuffer;               // 间接绘制命令 buffer       -- done
+    private indexedIndirectBuffer!: IndexedIndirectBuffer;       // 间接绘制命令 buffer       -- done
     private indexedStoragebuffer!: IndexedStorageBuffer;         // 索引                      -- done
     private indirectDrawCountBuffer!: StorageBuffer;             // 间接命令绘制数量 buffer
     private maxDrawCount: number = 0;                            // 间接绘制命令执行最大数量
 
-    private sceneVertexBufferOffset: number = 0;                // 场景级顶点缓冲偏移
-    private sceneInstanceOrderBufferOffset: number = 0;         // 场景级实例缓冲偏移
-    private sceneInstanceDescBufferOffset: number = 0;          // 场景实例描述缓冲偏移
-    private sceneMeshDescBufferOffset: number = 0;              // 场景物件描述缓冲偏移
-    private sceneMeshletBufferOffset: number = 0;               // 场景簇缓冲偏移
-    private sceneIndexedIndirectBufferOffset: number = 0;       // 常见间接绘制缓冲偏移
-    private sceneIndexedStorageBufferOffset: number = 0;        // 场景索引缓冲偏移
+    private sceneVertexBufferOffset: number = 0;                 // 场景级顶点缓冲偏移
+    private sceneInstanceOrderBufferOffset: number = 0;          // 场景级实例缓冲偏移
+    private sceneInstanceDescBufferOffset: number = 0;           // 场景实例描述缓冲偏移
+    private sceneMeshDescBufferOffset: number = 0;               // 场景物件描述缓冲偏移
+    private sceneMeshletBufferOffset: number = 0;                // 场景簇缓冲偏移
+    private sceneIndexedIndirectBufferOffset: number = 0;        // 常见间接绘制缓冲偏移
+    private sceneIndexedStorageBufferOffset: number = 0;         // 场景索引缓冲偏移
 
     private maxInstanceNum = 100000;                             // 最大物件数
 
@@ -118,7 +126,7 @@ class EarthScene {
             const lng: number = opts?.lng || 116.3955392;
             const lat: number = opts?.lat || 39.916;
             const alt: number = opts?.alt || 0;
-            const spacePosition = Cesium.Cartesian3.fromDegrees(lng, lat, alt);
+            const spacePosition = Cesium.Cartesian3.fromDegrees(lng, lat, 0);
             this.sceneModelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(spacePosition);
         }
         this.rootUri = rootUri;
@@ -195,6 +203,16 @@ class EarthScene {
                 const details: any = [];
                 let rawData = this.vertexQueue.shift();
                 while (rawData) {
+                    // DEBUG::
+                    {
+                        for (let k = 0; k < rawData.length; k += 9) {
+                            debugVertices.push({
+                                x: rawData[k],
+                                y: rawData[k + 1],
+                                z: rawData[k + 2]
+                            });
+                        }
+                    }
                     details.push({
                         byteLength: rawData.byteLength,
                         offset: this.sceneVertexBufferOffset,
@@ -260,12 +278,12 @@ class EarthScene {
                 const details: any = [];
                 let instanceDesc: InstanceDesc | undefined = this.instanceDescQueue.shift();
                 while (instanceDesc) {
-                    let instanceMatrix = new Cesium.Matrix4(
-                        instanceDesc.model.value[0], instanceDesc.model.value[1], instanceDesc.model.value[2], instanceDesc.model.value[3],
-                        instanceDesc.model.value[4], instanceDesc.model.value[5], instanceDesc.model.value[6], instanceDesc.model.value[7],
-                        instanceDesc.model.value[8], instanceDesc.model.value[9], instanceDesc.model.value[10], instanceDesc.model.value[11],
-                        instanceDesc.model.value[12], instanceDesc.model.value[13], instanceDesc.model.value[14], instanceDesc.model.value[15]
-                    );
+                    // let instanceMatrix = new Cesium.Matrix4(
+                    //     instanceDesc.model.value[0], instanceDesc.model.value[1], instanceDesc.model.value[2], instanceDesc.model.value[3],
+                    //     instanceDesc.model.value[4], instanceDesc.model.value[5], instanceDesc.model.value[6], instanceDesc.model.value[7],
+                    //     instanceDesc.model.value[8], instanceDesc.model.value[9], instanceDesc.model.value[10], instanceDesc.model.value[11],
+                    //     instanceDesc.model.value[12], instanceDesc.model.value[13], instanceDesc.model.value[14], instanceDesc.model.value[15]
+                    // );
                     let modelMatrix = new Cesium.Matrix4();
                     // Cesium.Matrix4.multiply(serverModelMatrix, instanceMatrix, modelMatrix);
                     modelMatrix = this.sceneModelMatrix;
@@ -466,21 +484,26 @@ class EarthScene {
     }
 
     private initIndirectDrawCountBuffer = () => {
-        const handler: Handle2D = () => {
-            const details: any = [];
-            details.push({
-                byteLength: 4,
-                offset: 0,
-                rawData: new Uint32Array([this.maxDrawCount]),
-            });
-            return {
-                rewrite: true,
-                details: details,
-            }
-        }
+        // const handler: Handle2D = () => {
+        //     const details: any = [];
+        //     details.push({
+        //         byteLength: 4,
+        //         offset: 0,
+        //         rawData: new Uint32Array([this.maxDrawCount]),
+        //     });
+        //     return {
+        //         rewrite: true,
+        //         details: details,
+        //     }
+        // }
+        // this.indirectDrawCountBuffer = this.compiler.createStorageBuffer({
+        //     totalByteLength: 4,
+        //     handler: handler,
+        //     bufferUsageFlags: GPUBufferUsage.INDIRECT,
+        // });
         this.indirectDrawCountBuffer = this.compiler.createStorageBuffer({
             totalByteLength: 4,
-            handler: handler,
+            rawData: [new Uint32Array([75])],
             bufferUsageFlags: GPUBufferUsage.INDIRECT,
         });
     }
@@ -591,10 +614,17 @@ class EarthScene {
         }
     }
 
+    // refresh buffer at frame begin.
+    public refreshBuffer = () => {
+        this.indirectDrawCountBuffer.getGpuBuffer(null, 'frameBegin');
+        this.indexedIndirectBuffer.getGpuBuffer(null, 'frameBegin');
+        this.indexedStoragebuffer.getGpuBuffer(null, 'frameBegin');
+    }
+
     // update cpu stage data.
     public updateSceneData = async () => {
         const visualRevealTiles = this.earthManager.getVisualRevealTiles();
-        if (!visualRevealTiles) {
+        if (visualRevealTiles.length === 0) {
             return;
         }
         let remain = this.sceneTaskLimit;
@@ -770,6 +800,28 @@ class EarthScene {
 
     public get MaxDrawCount(): number {
         return this.maxDrawCount;
+    }
+
+    public printDebugInfo(): void {
+        const limit: number = 10;
+        let step: number = 0;
+        debugVertices.forEach(vertex => {
+            if (step > limit) {
+                return;
+            }
+
+            // 计算 MVP 矩阵结果，是否在场景中
+            let vpMatrix = new Cesium.Matrix4();
+            Cesium.Matrix4.multiply(this.syncCamera.frustum.projectionMatrix, this.syncCamera.viewMatrix, vpMatrix);
+            let mvpMatrix = new Cesium.Matrix4();
+            Cesium.Matrix4.multiply(vpMatrix, this.sceneModelMatrix, mvpMatrix);
+
+            const position = new Cesium.Cartesian4(vertex.x, vertex.y, vertex.z, 1.0);
+            let ndc = new Cesium.Cartesian4();
+            Cesium.Matrix4.multiplyByVector(mvpMatrix, position, ndc);
+
+            console.log(`step: ${step++} x: ${ndc.x / ndc.w} y: ${ndc.y / ndc.w} z: ${ndc.z / ndc.w}`);
+        });
     }
 
 }

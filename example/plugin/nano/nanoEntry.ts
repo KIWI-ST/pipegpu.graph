@@ -104,7 +104,11 @@ const nanoEntry = async (
         viewportHeight,
         ctx,
         compiler,
-        { lng: lng, lat: lat, alt: alt }
+        {
+            lng: lng,
+            lat: lat,
+            alt: alt
+        }
     );
 
     // color attachment
@@ -184,7 +188,8 @@ const nanoEntry = async (
         earthScene.IndexedStoragebuffer,
         earthScene.IndexedIndirectBuffer,
         earthScene.IndirectDrawCountBuffer,
-        earthScene.MaxDrawCount
+        75,
+        // earthScene.MaxDrawCount
     );
 
     let desc: RenderHolderDesc = {
@@ -217,7 +222,10 @@ const nanoEntry = async (
         const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
         const graph: OrderedGraph = new OrderedGraph(ctx);
         const renderLoop = () => {
+            // earth scene update
+            earthScene.refreshBuffer();
             earthScene.updateSceneData();
+            // earthScene.printDebugInfo();
 
             // gpu render
             graph.append(holder);

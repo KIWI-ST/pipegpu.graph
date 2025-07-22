@@ -1,10 +1,11 @@
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from './util/fetchKTX';
 import { fetchHDMF, type MeshDataPack } from './util/fetchHDMF';
 import { nanoEntry } from './plugin/nano/nanoEntry';
-import { cesiumEntry, SCENE_CAMERA } from './plugin/cesium/cesiumEntry';
+import { cesiumEntry, SCENE_CAMERA } from './plugin/cesium/CesiumEntry';
 import { GeodeticCoordinate } from './plugin/nano/earth/GeodeticCoordinate';
 import { Ellipsoid, PSEUDOMERCATOR } from './plugin/nano/earth/Ellipsoid';
-import { nanoTestEntry } from './plugin/nano/nanoTestEntry';
+import { nanoEntry2 } from './plugin/nano/nanoEntry2';
+import { nanoEntry3 } from './plugin/nano/nanoEntry3';
 
 (async () => {
 
@@ -17,7 +18,7 @@ import { nanoTestEntry } from './plugin/nano/nanoTestEntry';
     {
         await cesiumEntry();
         await nanoEntry(SCENE_CAMERA);
-        // await nanoTestEntry();
+        // await nanoEntry3();
     }
 
     // const renderLoop = () => {
