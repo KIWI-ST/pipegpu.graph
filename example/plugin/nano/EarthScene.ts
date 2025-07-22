@@ -550,7 +550,7 @@ class EarthScene {
                     first_instance: 0,                  // TODO, 组织 instance 时，根据 instance 序号
                 };
                 ddibs.push(diib);
-                this.meshDescCursor++; // 处理 meshlet 偏移
+                firstIndex += meshlet.indices.length;   // this.meshletdescoff++; 处理 meshlet 偏移
             });
             this.runtimeMeshIDWithIndexedIndirectsMap.set(meshDescRuntimeID, ddibs);
             this.indexOffset += this.statsMeshletIndicesNum(meshDataPack);

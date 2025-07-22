@@ -210,8 +210,6 @@ const nanoEntry = async (
     desc.uniforms?.assign(instanceDescSnippet.getVariableName(), earthScene.InstanceDescBuffer);
     desc.uniforms?.assign(meshDescSnippet.getVariableName(), earthScene.MeshDescBuffer);
 
-    // desc.uniforms?.assign(viewSnippet.getVariableName(), )
-
     // raf
     {
         earthScene.forceUpdateSceneManager();

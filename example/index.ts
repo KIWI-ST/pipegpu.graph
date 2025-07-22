@@ -4,6 +4,7 @@ import { nanoEntry } from './plugin/nano/nanoEntry';
 import { cesiumEntry, SCENE_CAMERA } from './plugin/cesium/cesiumEntry';
 import { GeodeticCoordinate } from './plugin/nano/earth/GeodeticCoordinate';
 import { Ellipsoid, PSEUDOMERCATOR } from './plugin/nano/earth/Ellipsoid';
+import { nanoTestEntry } from './plugin/nano/nanoTestEntry';
 
 (async () => {
 
@@ -12,16 +13,11 @@ import { Ellipsoid, PSEUDOMERCATOR } from './plugin/nano/earth/Ellipsoid';
     //     console.log(hdmf);
     // }
 
-
-
     // init cesium
     {
         await cesiumEntry();
-    }
-
-    // init nano
-    {
         await nanoEntry(SCENE_CAMERA);
+        // await nanoTestEntry();
     }
 
     // const renderLoop = () => {
