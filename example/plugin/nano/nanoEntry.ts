@@ -8,7 +8,8 @@ import {
     Uniforms,
     IndexedBuffer,
     UniformBuffer,
-    StorageBuffer
+    StorageBuffer,
+    MapBuffer
 } from 'pipegpu';
 
 import * as Cesium from 'cesium'
@@ -97,19 +98,157 @@ const nanoEntry = async (
         canvas.style.position = `fixed`;
     }
 
-    const earthScene: EarthScene = new EarthScene(
-        `http://127.0.0.1/output/Azalea_LowPoly/`,
-        SCENE_CAMERA,
-        viewportWidth,
-        viewportHeight,
-        ctx,
-        compiler,
-        {
-            lng: lng,
-            lat: lat,
-            alt: alt
-        }
-    );
+    // const earthScene: EarthScene = new EarthScene(
+    //     `http://127.0.0.1/output/Azalea_LowPoly/`,
+    //     SCENE_CAMERA,
+    //     viewportWidth,
+    //     viewportHeight,
+    //     ctx,
+    //     compiler,
+    //     {
+    //         lng: lng,
+    //         lat: lat,
+    //         alt: alt
+    //     }
+    // );
+
+    const meshletPackData: MeshDataPack = await fetchHDMF(`http://127.0.0.1/output/Azalea_LowPoly/b930ad7861a0ac11e430aaf07e8ba45f12c97ddc1e0bd787463de0bec4e6e9ff.hdmf`);
+
+
+    const debugBuffer: MapBuffer = compiler.createMapBuffer({
+        totalByteLength: 4 * 4,
+        rawData: [new Float32Array([0, 0, 0, 0])],
+    });
+
+    // vertex buffer.
+    const vertexBuffer: StorageBuffer = compiler.createStorageBuffer({
+        totalByteLength: meshletPackData.vertices.byteLength,
+        rawData: [meshletPackData.vertices],
+    });
+
+    // view projection buffer.
+    let viewProjectionBuffer: UniformBuffer;
+    {
+        const handler: Handle1D = () => {
+            let projectionData: number[] = [];
+            Cesium.Matrix4.toArray(SCENE_CAMERA.frustum.projectionMatrix, projectionData);
+            let viewData: number[] = [];
+            Cesium.Matrix4.toArray(SCENE_CAMERA.viewMatrix, viewData);
+            const rawDataArr = [...projectionData, ...viewData];
+            const rawDataF32 = new Float32Array(rawDataArr);
+            return {
+                rewrite: true,
+                detail: {
+                    offset: 0, // gpu offset
+                    size: 32,
+                    byteLength: 32 * 4,
+                    rawData: rawDataF32,
+                }
+            }
+        };
+        viewProjectionBuffer = compiler.createUniformBuffer({
+            totalByteLength: 128,
+            handler: handler,
+        });
+    }
+
+    // instance order buffer.
+    const instanceOrderBuffer: StorageBuffer = compiler.createStorageBuffer({
+        totalByteLength: 4,
+        rawData: [new Uint32Array([0])],
+    });
+
+    // mesh desc buffer.
+    let meshDescBuffer: StorageBuffer;
+    {
+        const bufferView = new ArrayBuffer(80);
+        const f32view = new Float32Array(bufferView, 0, 4);
+        const u32View = new Uint32Array(bufferView, f32view.byteLength, 4);
+        f32view.set([
+            meshletPackData.sphereBound.cx,
+            meshletPackData.sphereBound.cy,
+            meshletPackData.sphereBound.cz,
+            meshletPackData.sphereBound.r
+        ]);
+        u32View.set([
+            0,
+            0,
+            meshletPackData.meshlets.length,
+            0
+        ]);
+        meshDescBuffer = compiler.createStorageBuffer({
+            totalByteLength: 80,
+            rawData: [bufferView as any],
+        });
+    }
+
+    // model matrix
+    const spacePosition = Cesium.Cartesian3.fromDegrees(lng, lat, 0);
+    const modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(spacePosition);
+
+    // instance desc buffer.
+    let instanceDescBuffer: StorageBuffer;
+    {
+        const bufferView = new ArrayBuffer(80);
+        const f32view = new Float32Array(bufferView, 0, 16);
+        const u32View = new Float32Array(bufferView, f32view.byteLength, 1);
+        f32view.set([
+            modelMatrix[0], modelMatrix[1], modelMatrix[2], modelMatrix[3],
+            modelMatrix[4], modelMatrix[5], modelMatrix[6], modelMatrix[7],
+            modelMatrix[8], modelMatrix[9], modelMatrix[10], modelMatrix[11],
+            modelMatrix[12], modelMatrix[13], modelMatrix[14], modelMatrix[15],
+        ]);
+        u32View.set([
+            0
+        ]);
+        instanceDescBuffer = compiler.createStorageBuffer({
+            totalByteLength: 80,
+            rawData: [bufferView as any],
+        });
+    }
+
+    // indexed storage buffer
+    let indexedStorageBuffer: IndexedStorageBuffer;
+    {
+        let byteLength: number = 0;
+        const indexData: any[] = [];
+        meshletPackData.meshlets.forEach(meshlet => {
+            byteLength += meshlet.indices.byteLength;
+            indexData.push(new Uint32Array(meshlet.indices));
+        });
+        indexedStorageBuffer = compiler.createIndexedStorageBuffer({
+            totalByteLength: byteLength,
+            rawData: indexData,
+            // totalByteLength: meshletPackData.meshlets[0].indices.byteLength,
+            // rawData: [new Uint32Array(meshletPackData.meshlets[0].indices)]
+        });
+    }
+
+    let indexedIndirectBuffer: IndexedIndirectBuffer;
+    {
+        let byteLength: number = 20 * meshletPackData.meshlets.length;
+        const diibs: any[] = [];
+        meshletPackData.meshlets.forEach(meshlet => {
+            const diib = new Uint32Array([
+                meshlet.indices.length,
+                1,
+                0,
+                0,
+                0
+            ]);
+            diibs.push(diib);
+        });
+        indexedIndirectBuffer = compiler.createIndexedIndirectBuffer({
+            totalByteLength: byteLength,
+            rawData: diibs,
+        });
+    }
+
+    let indirectDrawCountBuffer = compiler.createStorageBuffer({
+        totalByteLength: 4,
+        bufferUsageFlags: GPUBufferUsage.INDIRECT,
+        rawData: [new Uint32Array([meshletPackData.meshlets.length])],
+    });
 
     // color attachment
     const surfaceTexture = compiler.createSurfaceTexture2D();
@@ -133,64 +272,152 @@ const nanoEntry = async (
         texture: depthTexture
     });
 
-    // snippets
-    const debugSnippet: DebugSnippet = new DebugSnippet(compiler);
-    const vertexSnippet: VertexSnippet = new VertexSnippet(compiler);
-    const fragmentSnippet: FragmentDescSnippet = new FragmentDescSnippet(compiler);
-    const viewProjectionSnippet: ViewProjectionSnippet = new ViewProjectionSnippet(compiler);
-    const meshDescSnippet: MeshDescSnippet = new MeshDescSnippet(compiler);
-    const materialPhongSnippet: MaterialSnippet = new MaterialSnippet(compiler);
-    const materialTexture2DArraySnippet: Texture2DArraySnippet = new Texture2DArraySnippet(compiler);
-    const instanceDescSnippet: InstanceDescSnippet = new InstanceDescSnippet(compiler);
-    const instanceOrderSnippet: StorageArrayU32Snippet = new StorageArrayU32Snippet(compiler);
-    const indexedIndirectSnippet: IndexedIndirectSnippet = new IndexedIndirectSnippet(compiler);
-    const instanceCountAtomicSnippet: StorageAtomicU32Snippet = new StorageAtomicU32Snippet(compiler);
-    const textureSamplerSnippet: TextureSamplerSnippet = new TextureSamplerSnippet(compiler);
-    const pointLightSnippet: PointLightSnippet = new PointLightSnippet(compiler);
-    const viewSnippet: ViewSnippet = new ViewSnippet(compiler);
-    const indexedStorageSnippet = new StorageIndexSnippet(compiler);
-    const meshletDescSnippet = new MeshletDescSnippet(compiler);
-
-    // manage cpu-side data.
-    // - instance desc
-    // - vertex data
-    // - material desc
-    // - textures
-    // TODO:: temporary cancellation of material support.
-    const instanceDescMap: Map<string, number> = new Map();
-    const instanceDescArray: InstanceDesc[] = [];
-    const meshDescMap: Map<string, number> = new Map();
-    const meshDescArray: MeshDesc[] = [];
-    const meshletDescArray: MeshletDesc[] = [];
-    const vertexArray: Float32Array[] = [];
-    const indexedArray: Uint32Array[] = [];
-    const instanceOrderArray: Uint32Array[] = [];
-    let vertexOffset: number = 0;
-    let meshletIndexedOffset: number = 0;
-
-    // draw meshlet shader.
-    const debugMeshletComponent: DebugMeshletComponent = new DebugMeshletComponent(
-        ctx,
-        compiler,
-        fragmentSnippet,
-        vertexSnippet,
-        instanceDescSnippet,
-        viewProjectionSnippet,
-        viewSnippet,
-        meshDescSnippet,
-        indexedStorageSnippet,
-        instanceOrderSnippet,
-    );
-
-    const WGSLCode = debugMeshletComponent.build();
-
     let dispatch: RenderProperty = new RenderProperty(
-        earthScene.IndexedStoragebuffer,
-        earthScene.IndexedIndirectBuffer,
-        earthScene.IndirectDrawCountBuffer,
-        75,
-        // earthScene.MaxDrawCount
+        indexedStorageBuffer,
+        indexedIndirectBuffer,
+        indirectDrawCountBuffer,
+        meshletPackData.meshlets.length,
     );
+
+    const WGSLCode = `
+
+struct DEBUG
+{
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+}; 
+
+@group(0) @binding(0) var<storage, read_write> debug : DEBUG;
+
+struct FRAGMENT
+{
+
+    @builtin(position) position:vec4<f32>,
+    @location(0) @interpolate(flat) pack_id: u32,
+    @location(1) position_ws: vec4<f32>,                // ws = world space
+    @location(2) normal_ws: vec3<f32>,                  // ws = world space
+    @location(3) uv:vec2<f32>,
+    @location(4) @interpolate(flat) instance_id: u32,
+    @location(5) @interpolate(flat) meshlet_id: u32,
+    @location(6) @interpolate(flat) triangle_id: u32,
+    @location(7) @interpolate(flat) need_discard: u32,
+
+    @location(8) @interpolate(flat) vertex: vec3<f32>,  // for debug
+    @location(9) @interpolate(flat) matrix: vec4<f32>,  // for debug
+
+};
+    
+struct VERTEX
+{
+    px: f32,
+    py: f32,
+    pz: f32,
+    nx: f32,
+    ny: f32,
+    nz: f32,
+    u: f32,
+    v: f32,
+};
+
+@group(0) @binding(1) var<storage, read> vertex_arr: array<VERTEX>;
+
+struct VIEW_PROJECTION
+{
+    projection: mat4x4<f32>,
+    view: mat4x4<f32>,
+};
+
+@group(0) @binding(2) var<uniform> view_projection: VIEW_PROJECTION;
+
+struct INSTANCE_DESC
+{
+    model: mat4x4<f32>,
+    mesh_id: u32,
+};
+
+@group(0) @binding(3) var<storage, read> instance_desc_arr: array<INSTANCE_DESC>;
+
+struct MESH_DESC
+{
+    bounding_sphere:vec4<f32>,
+    vertex_offset: u32,
+    mesh_id: u32,
+    meshlet_count: u32,
+    material_id: u32,
+};
+
+@group(0) @binding(4) var<storage, read> mesh_desc_arr: array<MESH_DESC>;
+
+@group(0) @binding(5) var<storage, read> storage_arr_u32: array<u32>;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> FRAGMENT
+{
+    var f: FRAGMENT;
+    let v: VERTEX = vertex_arr[0];
+    let instance_index_order = storage_arr_u32[ii];
+    let instance = instance_desc_arr[instance_index_order];
+
+    // let mat4 = view_projection.projection * view_projection.view * instance.model;
+    
+    let mat4 = view_projection.projection * view_projection.view;
+    let position = vec4<f32>(v.px, v.py, v.pz, 1.0);
+    f.position = mat4 * position;
+    f.position_ws = instance.model * position;
+    f.normal_ws = vec3<f32>(v.nx, v.ny, v.nz);
+    f.triangle_id = vi;
+    f.instance_id = instance_index_order;
+    f.uv = vec2<f32>(v.u, v.v);
+
+    let MVP = instance.model * transpose(view_projection.view) * transpose(view_projection.projection) ;
+
+    let p = MVP * position;
+
+
+    
+    f.matrix = vec4<f32>(MVP[0][0], MVP[0][1], MVP[0][2], MVP[0][3]);
+    
+
+    // debug
+    f.vertex = vec3<f32>(v.px, v.py, v.pz);
+
+    //
+    // if(vi > 1300) {
+    //     f.position = vec4<f32>(0.2, 0.2, 0.0, 1.0);
+    // }
+    // else if(vi == 1) {
+    //     f.position = vec4<f32>(0.3, -0.1, 0.0, 1.0);
+    // }
+    // else {
+    //     // DBUEG
+    //     f.position = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    // }
+
+    return f;
+}
+
+@fragment
+fn fs_main(input: FRAGMENT)->@location(0) vec4<f32>
+{
+    debug.x = input.matrix.x;
+    debug.y = input.matrix.y;
+    debug.z = input.matrix.z;
+    debug.w = input.matrix.w;
+
+    // debug.x = f32(arrayLength(&vertex_arr));
+    // debug.x = input.vertex.x;
+    // debug.y = input.vertex.y;
+    // debug.z = input.vertex.z;
+    // debug.w = input.position.w;
+
+    let instance = instance_desc_arr[input.instance_id];
+    let mesh_id = instance.mesh_id;
+    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+}
+
+    `;
 
     let desc: RenderHolderDesc = {
         label: '[DEMO][render]',
@@ -207,32 +434,74 @@ const nanoEntry = async (
         dispatch: dispatch,
         colorAttachments: colorAttachments,
         depthStencilAttachment: depthStencilAttachment,
+        primitiveDesc: {
+            primitiveTopology: 'point-list',
+            cullFormat: 'none'
+        }
     };
 
-    desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), earthScene.ViewProjectionBuffer);
-    desc.uniforms?.assign(vertexSnippet.getVariableName(), earthScene.VertexBuffer);
-    desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), earthScene.InstanceOrderBuffer);
-    desc.uniforms?.assign(instanceDescSnippet.getVariableName(), earthScene.InstanceDescBuffer);
-    desc.uniforms?.assign(meshDescSnippet.getVariableName(), earthScene.MeshDescBuffer);
+    desc.uniforms?.assign(`vertex_arr`, vertexBuffer);
+    desc.uniforms?.assign(`view_projection`, viewProjectionBuffer);
+    desc.uniforms?.assign(`storage_arr_u32`, instanceOrderBuffer);
+    desc.uniforms?.assign(`instance_desc_arr`, instanceDescBuffer);
+    desc.uniforms?.assign(`mesh_desc_arr`, meshDescBuffer);
+    desc.uniforms?.assign(`debug`, debugBuffer);
+
+    // debug
+    {
+        const printDebugInfo = async () => {
+            let vpMatrix = new Cesium.Matrix4();
+            Cesium.Matrix4.multiply(SCENE_CAMERA.frustum.projectionMatrix, SCENE_CAMERA.viewMatrix, vpMatrix);
+            let mvpMatrix = new Cesium.Matrix4();
+            console.log(`cpu: vpmatrix: ${vpMatrix}`);
+            Cesium.Matrix4.multiply(vpMatrix, modelMatrix, mvpMatrix);
+            console.log(`cpu: mvpmatrix: ${mvpMatrix}`);
+
+            console.log(`cpu: modelMatrix: ${modelMatrix}`);
+            // pulled?.forEach(v => console.log(v));
+            // for (let k = 0; k < meshletPackData.vertices.length; k += 9) {
+            //     let vpMatrix = new Cesium.Matrix4();
+            //     Cesium.Matrix4.multiply(SCENE_CAMERA.frustum.projectionMatrix, SCENE_CAMERA.viewMatrix, vpMatrix);
+            //     let mvpMatrix = new Cesium.Matrix4();
+            //     Cesium.Matrix4.multiply(vpMatrix, modelMatrix, mvpMatrix);
+            //     const position = new Cesium.Cartesian4(
+            //         meshletPackData.vertices[k],
+            //         meshletPackData.vertices[k + 1],
+            //         meshletPackData.vertices[k + 2],
+            //         1.0
+            //     );
+            //     let ndc = new Cesium.Cartesian4();
+            //     Cesium.Matrix4.multiplyByVector(mvpMatrix, position, ndc);
+            //     console.log(`step: ${k} | ( x: ${ndc.x / ndc.w} , y: ${ndc.y / ndc.w} , z: ${ndc.z / ndc.w} )`);
+            // }
+        };
+        setTimeout(() => { printDebugInfo() }, 3000);
+    }
 
     // raf
     {
-        earthScene.forceUpdateSceneManager();
-
+        // earthScene.forceUpdateSceneManager();
         const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
         const graph: OrderedGraph = new OrderedGraph(ctx);
-        const renderLoop = () => {
-            // earth scene update
-            earthScene.refreshBuffer();
-            earthScene.updateSceneData();
-            // earthScene.printDebugInfo();
+        const renderLoop = async () => {
 
-            // gpu render
-            graph.append(holder);
-            graph.build();
+            ctx.refreshFrameResource();
+            const encoder = ctx.getCommandEncoder();
+            holder.build(encoder);
+            ctx.submitFrameResource();
 
-            // loop
+            const pulled = await debugBuffer.PullDataAsync(0, 16);
+            console.log(new Float32Array(pulled as ArrayBuffer));
             requestAnimationFrame(renderLoop);
+
+            // earth scene update
+            // earthScene.refreshBuffer();
+            // earthScene.updateSceneData();
+            // earthScene.printDebugInfo();
+            // gpu render
+            // graph.append(holder);
+            // graph.build();
+            // loop
         };
         requestAnimationFrame(renderLoop);
     }

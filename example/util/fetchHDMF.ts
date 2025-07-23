@@ -128,7 +128,7 @@ type AABB = {
 
 type Meshlet = {
     selfParentBounds: Float32Array,
-    indices: Uint32Array,
+    indices: Uint32Array<ArrayBuffer>,
 };
 
 type MeshDataPack = {
