@@ -113,8 +113,8 @@ const nanoEntry = async (
     // );
 
     const meshletPackData: MeshDataPack = await fetchHDMF(
-        `http://127.0.0.1/output/BistroExterior/004bec5f43a0f32f56d89857393c6602cd8538452733b934705ddec5f235e1ff.hdmf`
-        //`http://127.0.0.1/output/Azalea_LowPoly/b930ad7861a0ac11e430aaf07e8ba45f12c97ddc1e0bd787463de0bec4e6e9ff.hdmf`
+        `http://127.0.0.1/output/BistroExterior/7d8ee9820fca60a5ca677fb0ebf9fcfaec56b7c6956428e5e632329466ec22ef.hdmf`
+        // `http://127.0.0.1/output/Azalea_LowPoly/b930ad7861a0ac11e430aaf07e8ba45f12c97ddc1e0bd787463de0bec4e6e9ff.hdmf`
     );
 
     //
@@ -138,15 +138,19 @@ const nanoEntry = async (
 
     // view projection buffer.
     let viewProjectionBuffer: UniformBuffer;
+    // 行主序投影矩阵
+    let projectionMatrix = new Cesium.Matrix4();
+    // 行主序视图矩阵
+    let viewMatrix = new Cesium.Matrix4();
     {
         const handler: Handle1D = () => {
+
+            // cesium 默认是列主序，需转换成行主序交给 webgpu
             let projectionData: number[] = [];
-            let projectionMatrix = new Cesium.Matrix4();
             Cesium.Matrix4.transpose(SCENE_CAMERA.frustum.projectionMatrix, projectionMatrix);
             Cesium.Matrix4.toArray(projectionMatrix, projectionData);
 
             let viewData: number[] = [];
-            let viewMatrix = new Cesium.Matrix4();
             Cesium.Matrix4.transpose(SCENE_CAMERA.viewMatrix, viewMatrix);
             Cesium.Matrix4.toArray(viewMatrix, viewData);
 
@@ -200,21 +204,52 @@ const nanoEntry = async (
 
     // model matrix
     const spacePosition = Cesium.Cartesian3.fromDegrees(lng, lat, 0);
-    const modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(spacePosition);
+    const locationMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(spacePosition);
+    let modelMatrix = new Cesium.Matrix4();
+    Cesium.Matrix4.transpose(locationMatrix, modelMatrix);
 
     // instance desc buffer.
     let instanceDescBuffer: StorageBuffer;
     {
+
+        const instanceMatrix = new Cesium.Matrix4();
+
+        Cesium.Matrix4.transpose(
+            Cesium.Matrix4.fromArray([
+                0.009999999776482582,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                -4.3711387287537207e-10,
+                -0.009999999776482582,
+                0.0,
+                0.0,
+                0.009999999776482582,
+                -4.3711387287537207e-10,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ]),
+            instanceMatrix,
+        )
+
         const bufferView = new ArrayBuffer(80);
         const f32view = new Float32Array(bufferView, 0, 16);
         const u32View = new Float32Array(bufferView, f32view.byteLength, 1);
 
-        let instanceModelMatrix = new Cesium.Matrix4();
-        Cesium.Matrix4.transpose(modelMatrix, instanceModelMatrix);
-        let instanceModelData: number[] = [];
-        Cesium.Matrix4.toArray(instanceModelMatrix, instanceModelData);
+        let locationInstanceMatrix = new Cesium.Matrix4();
+        Cesium.Matrix4.multiply(locationMatrix, instanceMatrix, locationInstanceMatrix);
 
-        f32view.set(instanceModelData);
+        let mat4x4 = new Cesium.Matrix4();
+        Cesium.Matrix4.transpose(locationInstanceMatrix, mat4x4);
+
+        let mat4x4Data: number[] = [];
+        Cesium.Matrix4.toArray(mat4x4, mat4x4Data);
+
+        f32view.set(mat4x4Data);
         u32View.set([0]);
         instanceDescBuffer = compiler.createStorageBuffer({
             totalByteLength: 80,
@@ -293,7 +328,8 @@ const nanoEntry = async (
         indexedStorageBuffer,
         indexedIndirectBuffer,
         indirectDrawCountBuffer,
-        meshletPackData.meshlets.length,
+        1
+        // meshletPackData.meshlets.length,
     );
 
     const WGSLCode = `
@@ -321,10 +357,10 @@ struct FRAGMENT
     @location(6) @interpolate(flat) triangle_id: u32,
     @location(7) @interpolate(flat) need_discard: u32,
 
-    @location(8) @interpolate(flat) m0: vec4<f32>,      // for debug
-    @location(9) @interpolate(flat) m1: vec4<f32>,      // for debug
-    @location(10) @interpolate(flat) m2: vec4<f32>,     // for debug
-    @location(11) @interpolate(flat) m3: vec4<f32>,     // for debug
+    // @location(8) @interpolate(flat) m0: vec4<f32>,      // for debug
+    // @location(9) @interpolate(flat) m1: vec4<f32>,      // for debug
+    // @location(10) @interpolate(flat) m2: vec4<f32>,     // for debug
+    // @location(11) @interpolate(flat) m3: vec4<f32>,     // for debug
 
 };
     
@@ -384,42 +420,13 @@ fn vs_main(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> 
 
     let position = vec4<f32>(v.px, v.py, v.pz, 1.0);
 
-    // f.position = mat4 * position;
-    // f.position_ws = instance.model * position;
-
+    f.position_ws = instance.model * position;
     f.normal_ws = vec3<f32>(v.nx, v.ny, v.nz);
-
-    // f.triangle_id = vi;
-    // f.instance_id = instance_index_order;
-    // f.uv = vec2<f32>(v.u, v.v);
-
-    // let MVP = transpose(view_projection.projection) * transpose(view_projection.view) ;
-
-    // let p = MVP * position;
-
-    // let VPMatrix = view_projection.projection * view_projection.view;
-    // let VPMatrix = view_projection.view * view_projection.projection;    // correct
-    // let VPMatrix = instance.model;
-
-    // view_projection.view * view_projection.projection ;view_projection.view * view_projection.projection ;
-    let VPMatrix = view_projection.view * view_projection.projection;
-
-    // instance.model * VPMatrix;
-    // projection
-    // view
-    // instance.model
-
-    let MVPMatrix = position * instance.model * view_projection.view * view_projection.projection;
-
-    // let ndc =  MVPMatrix * position;
-    f.position =  position * instance.model * view_projection.view * view_projection.projection;
-
-    // f.position = vec4<f32>(MVPMatrix.x/MVPMatrix.w, MVPMatrix.y/MVPMatrix.w, 0.0, 1.0);
-
-    f.m1 = f.position;
-
-    // f.m1 = position;
-
+    f.triangle_id = vi;
+    f.instance_id = instance_index_order;
+    f.uv = vec2<f32>(v.u, v.v);
+    f.position = position * instance.model * view_projection.view *  view_projection.projection;
+    
     // f.m0 = vec4<f32>(
     //     MVPMatrix[0][0], 
     //     MVPMatrix[0][1], 
@@ -451,20 +458,14 @@ fn vs_main(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> 
 @fragment
 fn fs_main(f: FRAGMENT)->@location(0) vec4<f32>
 {
-    debug.m0 = f.m0;
-    debug.m1 = f.m1;
-    debug.m2 = f.m2;
-    debug.m3 = f.m3;
-
-    // debug.x = f32(arrayLength(&vertex_arr));
-    // debug.x = input.vertex.x;
-    // debug.y = input.vertex.y;
-    // debug.z = input.vertex.z;
-    // debug.w = input.position.w;
+    debug.m0 = vec4<f32>(f32(f.triangle_id), f32(f.instance_id), f.uv.x, f.uv.y);
+    // debug.m1 = f.m1;
+    // debug.m2 = f.m2;
+    // debug.m3 = f.m3;
 
     let instance = instance_desc_arr[f.instance_id];
     let mesh_id = instance.mesh_id;
-    return vec4<f32>(f.normal_ws, 1.0);
+    return vec4<f32>(f.uv.x, f.uv.y, 0.0, 1.0);
 }
 
     `;
@@ -486,16 +487,16 @@ fn fs_main(f: FRAGMENT)->@location(0) vec4<f32>
         depthStencilAttachment: depthStencilAttachment,
         primitiveDesc: {
             // primitiveTopology: 'point-list',
-            cullFormat: 'none'
+            cullFormat: 'backCW'
         }
     };
 
+    desc.uniforms?.assign(`debug`, debugBuffer);
     desc.uniforms?.assign(`vertex_arr`, vertexBuffer);
     desc.uniforms?.assign(`view_projection`, viewProjectionBuffer);
     desc.uniforms?.assign(`storage_arr_u32`, instanceOrderBuffer);
     desc.uniforms?.assign(`instance_desc_arr`, instanceDescBuffer);
     desc.uniforms?.assign(`mesh_desc_arr`, meshDescBuffer);
-    desc.uniforms?.assign(`debug`, debugBuffer);
 
     // debug
     {
@@ -513,10 +514,10 @@ fn fs_main(f: FRAGMENT)->@location(0) vec4<f32>
             console.log(`${vpMatrix}`);
 
             console.log(`model matrix:`);
-            console.log(`${modelMatrix}`);
+            console.log(`${locationMatrix}`);
 
             let mvpMatrix = new Cesium.Matrix4();
-            Cesium.Matrix4.multiply(vpMatrix, modelMatrix, mvpMatrix);
+            Cesium.Matrix4.multiply(vpMatrix, locationMatrix, mvpMatrix);
             console.log(`MVP matrix`);
             console.log(`${mvpMatrix}`);
 
