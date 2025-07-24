@@ -21,6 +21,7 @@ const cesiumEntry = async () => {
         animation: false,
         timeline: false,
         fullscreenButton: false,
+        scene3DOnly: true,
         // globe: new Cesium.Globe(new Cesium.Ellipsoid(6378137, 6378137, 6378137)),
         // mapProjection: new Cesium.WebMercatorProjection(),
         contextOptions: {

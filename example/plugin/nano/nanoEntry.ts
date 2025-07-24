@@ -113,8 +113,9 @@ const nanoEntry = async (
     // );
 
     const meshletPackData: MeshDataPack = await fetchHDMF(
-        `http://127.0.0.1/output/BistroExterior/7d8ee9820fca60a5ca677fb0ebf9fcfaec56b7c6956428e5e632329466ec22ef.hdmf`
-        // `http://127.0.0.1/output/Azalea_LowPoly/b930ad7861a0ac11e430aaf07e8ba45f12c97ddc1e0bd787463de0bec4e6e9ff.hdmf`
+        // `http://127.0.0.1/output/Jinx/9f36373bab2b3f20c6d9b765ae57e81650f31d876081bb00bdefc4ea516ce69a.hdmf`
+        // `http://127.0.0.1/output/BistroExterior/7d8ee9820fca60a5ca677fb0ebf9fcfaec56b7c6956428e5e632329466ec22ef.hdmf`
+        `http://127.0.0.1/output/Azalea_LowPoly/8bc8d8adeb08b02a2161dd2b06c67585621d4f9bb98e73279155d498f40e5d92.hdmf`
     );
 
     //
@@ -212,29 +213,29 @@ const nanoEntry = async (
     let instanceDescBuffer: StorageBuffer;
     {
 
-        const instanceMatrix = new Cesium.Matrix4();
+        const instanceMatrix = Cesium.Matrix4.IDENTITY.clone();
 
-        Cesium.Matrix4.transpose(
-            Cesium.Matrix4.fromArray([
-                0.009999999776482582,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                -4.3711387287537207e-10,
-                -0.009999999776482582,
-                0.0,
-                0.0,
-                0.009999999776482582,
-                -4.3711387287537207e-10,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                1.0
-            ]),
-            instanceMatrix,
-        )
+        // Cesium.Matrix4.transpose(
+        //     Cesium.Matrix4.fromArray([
+        //         0.009999999776482582,
+        //         0.0,
+        //         0.0,
+        //         0.0,
+        //         0.0,
+        //         -4.3711387287537207e-10,
+        //         -0.009999999776482582,
+        //         0.0,
+        //         0.0,
+        //         0.009999999776482582,
+        //         -4.3711387287537207e-10,
+        //         0.0,
+        //         0.0,
+        //         0.0,
+        //         0.0,
+        //         1.0
+        //     ]),
+        //     instanceMatrix,
+        // )
 
         const bufferView = new ArrayBuffer(80);
         const f32view = new Float32Array(bufferView, 0, 16);
@@ -278,15 +279,17 @@ const nanoEntry = async (
     {
         let byteLength: number = 20 * meshletPackData.meshlets.length;
         const diibs: any[] = [];
+        let offset: number = 0;
         meshletPackData.meshlets.forEach(meshlet => {
             const diib = new Uint32Array([
                 meshlet.indices.length,
                 1,
-                0,
+                offset,
                 0,
                 0
             ]);
             diibs.push(diib);
+            offset += meshlet.indices.length;
         });
         indexedIndirectBuffer = compiler.createIndexedIndirectBuffer({
             totalByteLength: byteLength,
@@ -328,8 +331,7 @@ const nanoEntry = async (
         indexedStorageBuffer,
         indexedIndirectBuffer,
         indirectDrawCountBuffer,
-        1
-        // meshletPackData.meshlets.length,
+        meshletPackData.meshlets.length,
     );
 
     const WGSLCode = `
@@ -465,6 +467,7 @@ fn fs_main(f: FRAGMENT)->@location(0) vec4<f32>
 
     let instance = instance_desc_arr[f.instance_id];
     let mesh_id = instance.mesh_id;
+    // f32(f.instance_id)/2000.0
     return vec4<f32>(f.uv.x, f.uv.y, 0.0, 1.0);
 }
 
@@ -486,8 +489,8 @@ fn fs_main(f: FRAGMENT)->@location(0) vec4<f32>
         colorAttachments: colorAttachments,
         depthStencilAttachment: depthStencilAttachment,
         primitiveDesc: {
-            // primitiveTopology: 'point-list',
-            cullFormat: 'backCW'
+            primitiveTopology: 'triangle-list',
+            cullFormat: 'backCCW',
         }
     };
 
