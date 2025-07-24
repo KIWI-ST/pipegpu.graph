@@ -112,12 +112,22 @@ const nanoEntry = async (
     //     }
     // );
 
-    const meshletPackData: MeshDataPack = await fetchHDMF(`http://127.0.0.1/output/Azalea_LowPoly/b930ad7861a0ac11e430aaf07e8ba45f12c97ddc1e0bd787463de0bec4e6e9ff.hdmf`);
+    const meshletPackData: MeshDataPack = await fetchHDMF(
+        `http://127.0.0.1/output/BistroExterior/004bec5f43a0f32f56d89857393c6602cd8538452733b934705ddec5f235e1ff.hdmf`
+        //`http://127.0.0.1/output/Azalea_LowPoly/b930ad7861a0ac11e430aaf07e8ba45f12c97ddc1e0bd787463de0bec4e6e9ff.hdmf`
+    );
 
-
+    //
     const debugBuffer: MapBuffer = compiler.createMapBuffer({
-        totalByteLength: 4 * 4,
-        rawData: [new Float32Array([0, 0, 0, 0])],
+        totalByteLength: 16 * 4,
+        rawData: [
+            new Float32Array([
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+            ])
+        ],
     });
 
     // vertex buffer.
@@ -131,9 +141,15 @@ const nanoEntry = async (
     {
         const handler: Handle1D = () => {
             let projectionData: number[] = [];
-            Cesium.Matrix4.toArray(SCENE_CAMERA.frustum.projectionMatrix, projectionData);
+            let projectionMatrix = new Cesium.Matrix4();
+            Cesium.Matrix4.transpose(SCENE_CAMERA.frustum.projectionMatrix, projectionMatrix);
+            Cesium.Matrix4.toArray(projectionMatrix, projectionData);
+
             let viewData: number[] = [];
-            Cesium.Matrix4.toArray(SCENE_CAMERA.viewMatrix, viewData);
+            let viewMatrix = new Cesium.Matrix4();
+            Cesium.Matrix4.transpose(SCENE_CAMERA.viewMatrix, viewMatrix);
+            Cesium.Matrix4.toArray(viewMatrix, viewData);
+
             const rawDataArr = [...projectionData, ...viewData];
             const rawDataF32 = new Float32Array(rawDataArr);
             return {
@@ -192,15 +208,14 @@ const nanoEntry = async (
         const bufferView = new ArrayBuffer(80);
         const f32view = new Float32Array(bufferView, 0, 16);
         const u32View = new Float32Array(bufferView, f32view.byteLength, 1);
-        f32view.set([
-            modelMatrix[0], modelMatrix[1], modelMatrix[2], modelMatrix[3],
-            modelMatrix[4], modelMatrix[5], modelMatrix[6], modelMatrix[7],
-            modelMatrix[8], modelMatrix[9], modelMatrix[10], modelMatrix[11],
-            modelMatrix[12], modelMatrix[13], modelMatrix[14], modelMatrix[15],
-        ]);
-        u32View.set([
-            0
-        ]);
+
+        let instanceModelMatrix = new Cesium.Matrix4();
+        Cesium.Matrix4.transpose(modelMatrix, instanceModelMatrix);
+        let instanceModelData: number[] = [];
+        Cesium.Matrix4.toArray(instanceModelMatrix, instanceModelData);
+
+        f32view.set(instanceModelData);
+        u32View.set([0]);
         instanceDescBuffer = compiler.createStorageBuffer({
             totalByteLength: 80,
             rawData: [bufferView as any],
@@ -269,7 +284,9 @@ const nanoEntry = async (
     });
 
     const depthStencilAttachment = compiler.createDepthStencilAttachment({
-        texture: depthTexture
+        texture: depthTexture,
+        depthCompareFunction: 'less-equal',
+        depthLoadStoreFormat: 'clearStore',
     });
 
     let dispatch: RenderProperty = new RenderProperty(
@@ -283,10 +300,10 @@ const nanoEntry = async (
 
 struct DEBUG
 {
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
+    m0: vec4<f32>,
+    m1: vec4<f32>,
+    m2: vec4<f32>,
+    m3: vec4<f32>,
 }; 
 
 @group(0) @binding(0) var<storage, read_write> debug : DEBUG;
@@ -304,8 +321,10 @@ struct FRAGMENT
     @location(6) @interpolate(flat) triangle_id: u32,
     @location(7) @interpolate(flat) need_discard: u32,
 
-    @location(8) @interpolate(flat) vertex: vec3<f32>,  // for debug
-    @location(9) @interpolate(flat) matrix: vec4<f32>,  // for debug
+    @location(8) @interpolate(flat) m0: vec4<f32>,      // for debug
+    @location(9) @interpolate(flat) m1: vec4<f32>,      // for debug
+    @location(10) @interpolate(flat) m2: vec4<f32>,     // for debug
+    @location(11) @interpolate(flat) m3: vec4<f32>,     // for debug
 
 };
     
@@ -356,55 +375,86 @@ struct MESH_DESC
 fn vs_main(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> FRAGMENT
 {
     var f: FRAGMENT;
-    let v: VERTEX = vertex_arr[0];
+    let v: VERTEX = vertex_arr[vi];
     let instance_index_order = storage_arr_u32[ii];
     let instance = instance_desc_arr[instance_index_order];
 
     // let mat4 = view_projection.projection * view_projection.view * instance.model;
-    
-    let mat4 = view_projection.projection * view_projection.view;
+    // let mat4 = view_projection.projection * view_projection.view;
+
     let position = vec4<f32>(v.px, v.py, v.pz, 1.0);
-    f.position = mat4 * position;
-    f.position_ws = instance.model * position;
+
+    // f.position = mat4 * position;
+    // f.position_ws = instance.model * position;
+
     f.normal_ws = vec3<f32>(v.nx, v.ny, v.nz);
-    f.triangle_id = vi;
-    f.instance_id = instance_index_order;
-    f.uv = vec2<f32>(v.u, v.v);
 
-    let MVP = instance.model * transpose(view_projection.view) * transpose(view_projection.projection) ;
+    // f.triangle_id = vi;
+    // f.instance_id = instance_index_order;
+    // f.uv = vec2<f32>(v.u, v.v);
 
-    let p = MVP * position;
+    // let MVP = transpose(view_projection.projection) * transpose(view_projection.view) ;
 
+    // let p = MVP * position;
 
-    
-    f.matrix = vec4<f32>(MVP[0][0], MVP[0][1], MVP[0][2], MVP[0][3]);
-    
+    // let VPMatrix = view_projection.projection * view_projection.view;
+    // let VPMatrix = view_projection.view * view_projection.projection;    // correct
+    // let VPMatrix = instance.model;
 
-    // debug
-    f.vertex = vec3<f32>(v.px, v.py, v.pz);
+    // view_projection.view * view_projection.projection ;view_projection.view * view_projection.projection ;
+    let VPMatrix = view_projection.view * view_projection.projection;
 
-    //
-    // if(vi > 1300) {
-    //     f.position = vec4<f32>(0.2, 0.2, 0.0, 1.0);
-    // }
-    // else if(vi == 1) {
-    //     f.position = vec4<f32>(0.3, -0.1, 0.0, 1.0);
-    // }
-    // else {
-    //     // DBUEG
-    //     f.position = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    // }
+    // instance.model * VPMatrix;
+    // projection
+    // view
+    // instance.model
+
+    let MVPMatrix = position * instance.model * view_projection.view * view_projection.projection;
+
+    // let ndc =  MVPMatrix * position;
+    f.position =  position * instance.model * view_projection.view * view_projection.projection;
+
+    // f.position = vec4<f32>(MVPMatrix.x/MVPMatrix.w, MVPMatrix.y/MVPMatrix.w, 0.0, 1.0);
+
+    f.m1 = f.position;
+
+    // f.m1 = position;
+
+    // f.m0 = vec4<f32>(
+    //     MVPMatrix[0][0], 
+    //     MVPMatrix[0][1], 
+    //     MVPMatrix[0][2], 
+    //     MVPMatrix[0][3], 
+    // );
+    // f.m1 = vec4<f32>(
+    //     MVPMatrix[1][0], 
+    //     MVPMatrix[1][1], 
+    //     MVPMatrix[1][2], 
+    //     MVPMatrix[1][3], 
+    // );
+    // f.m2 = vec4<f32>(
+    //     MVPMatrix[2][0], 
+    //     MVPMatrix[2][1], 
+    //     MVPMatrix[2][2], 
+    //     MVPMatrix[2][3], 
+    // );
+    // f.m3 = vec4<f32>(
+    //     MVPMatrix[3][0], 
+    //     MVPMatrix[3][1], 
+    //     MVPMatrix[3][2], 
+    //     MVPMatrix[3][3], 
+    // );
 
     return f;
 }
 
 @fragment
-fn fs_main(input: FRAGMENT)->@location(0) vec4<f32>
+fn fs_main(f: FRAGMENT)->@location(0) vec4<f32>
 {
-    debug.x = input.matrix.x;
-    debug.y = input.matrix.y;
-    debug.z = input.matrix.z;
-    debug.w = input.matrix.w;
+    debug.m0 = f.m0;
+    debug.m1 = f.m1;
+    debug.m2 = f.m2;
+    debug.m3 = f.m3;
 
     // debug.x = f32(arrayLength(&vertex_arr));
     // debug.x = input.vertex.x;
@@ -412,9 +462,9 @@ fn fs_main(input: FRAGMENT)->@location(0) vec4<f32>
     // debug.z = input.vertex.z;
     // debug.w = input.position.w;
 
-    let instance = instance_desc_arr[input.instance_id];
+    let instance = instance_desc_arr[f.instance_id];
     let mesh_id = instance.mesh_id;
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    return vec4<f32>(f.normal_ws, 1.0);
 }
 
     `;
@@ -435,7 +485,7 @@ fn fs_main(input: FRAGMENT)->@location(0) vec4<f32>
         colorAttachments: colorAttachments,
         depthStencilAttachment: depthStencilAttachment,
         primitiveDesc: {
-            primitiveTopology: 'point-list',
+            // primitiveTopology: 'point-list',
             cullFormat: 'none'
         }
     };
@@ -450,14 +500,47 @@ fn fs_main(input: FRAGMENT)->@location(0) vec4<f32>
     // debug
     {
         const printDebugInfo = async () => {
+
+            console.log(`projection matrix:`);
+            console.log(`${SCENE_CAMERA.frustum.projectionMatrix}`);
+
+            console.log(`view matrix:`);
+            console.log(`${SCENE_CAMERA.viewMatrix}`);
+
             let vpMatrix = new Cesium.Matrix4();
             Cesium.Matrix4.multiply(SCENE_CAMERA.frustum.projectionMatrix, SCENE_CAMERA.viewMatrix, vpMatrix);
-            let mvpMatrix = new Cesium.Matrix4();
-            console.log(`cpu: vpmatrix: ${vpMatrix}`);
-            Cesium.Matrix4.multiply(vpMatrix, modelMatrix, mvpMatrix);
-            console.log(`cpu: mvpmatrix: ${mvpMatrix}`);
+            console.log(`vp matrix:`);
+            console.log(`${vpMatrix}`);
 
-            console.log(`cpu: modelMatrix: ${modelMatrix}`);
+            console.log(`model matrix:`);
+            console.log(`${modelMatrix}`);
+
+            let mvpMatrix = new Cesium.Matrix4();
+            Cesium.Matrix4.multiply(vpMatrix, modelMatrix, mvpMatrix);
+            console.log(`MVP matrix`);
+            console.log(`${mvpMatrix}`);
+
+            for (let k = 0; k < 9; k += 9) {
+                const position = new Cesium.Cartesian4(
+                    meshletPackData.vertices[k],
+                    meshletPackData.vertices[k + 1],
+                    meshletPackData.vertices[k + 2],
+                    1.0
+                );
+                let ndc = new Cesium.Cartesian4();
+                Cesium.Matrix4.multiplyByVector(mvpMatrix, position, ndc);
+                console.log(`vertex: ${position}`);
+                console.log(`step: ${k} | ( x: ${ndc.x / ndc.w} , y: ${ndc.y / ndc.w} , z: ${ndc.z / ndc.w} )`);
+            }
+
+            // let mvpMatrix = new Cesium.Matrix4();
+            // Cesium.Matrix4.multiply(vpMatrix, modelMatrix, mvpMatrix);
+            // console.log(`cpu: vpmatrix:`);
+            // console.log(`${mvpMatrix}`);
+
+            // console.log(`cpu: modelMatrix:`);
+            // console.log(`${modelMatrix}`);
+
             // pulled?.forEach(v => console.log(v));
             // for (let k = 0; k < meshletPackData.vertices.length; k += 9) {
             //     let vpMatrix = new Cesium.Matrix4();
@@ -483,6 +566,7 @@ fn fs_main(input: FRAGMENT)->@location(0) vec4<f32>
         // earthScene.forceUpdateSceneManager();
         const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
         const graph: OrderedGraph = new OrderedGraph(ctx);
+        let seed = 0;
         const renderLoop = async () => {
 
             ctx.refreshFrameResource();
@@ -490,10 +574,19 @@ fn fs_main(input: FRAGMENT)->@location(0) vec4<f32>
             holder.build(encoder);
             ctx.submitFrameResource();
 
-            const pulled = await debugBuffer.PullDataAsync(0, 16);
-            console.log(new Float32Array(pulled as ArrayBuffer));
-            requestAnimationFrame(renderLoop);
+            if (180 == seed) {
+                const pulled = await debugBuffer.PullDataAsync(0, 16 * 4);
+                const f32Array = new Float32Array(pulled as ArrayBuffer);
+                console.log(`------------------------------------------------------------------------------------------------------------------------`);
+                console.log(`debug info:`);
+                for (let k = 0; k < 4; k++) {
+                    const index = k * 4;
+                    console.log(`(${f32Array[index]}, ${f32Array[index + 1]}, ${f32Array[index + 2]}, ${f32Array[index + 3]})`);
+                }
+            }
 
+            seed++;
+            requestAnimationFrame(renderLoop);
             // earth scene update
             // earthScene.refreshBuffer();
             // earthScene.updateSceneData();
