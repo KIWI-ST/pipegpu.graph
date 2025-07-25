@@ -4,8 +4,6 @@ import { nanoEntry } from './plugin/nano/nanoEntry';
 import { cesiumEntry, SCENE_CAMERA } from './plugin/cesium/CesiumEntry';
 import { GeodeticCoordinate } from './plugin/nano/earth/GeodeticCoordinate';
 import { Ellipsoid, PSEUDOMERCATOR } from './plugin/nano/earth/Ellipsoid';
-import { nanoEntry2 } from './plugin/nano/nanoEntry2';
-import { nanoEntry3 } from './plugin/nano/nanoEntry3';
 
 (async () => {
 

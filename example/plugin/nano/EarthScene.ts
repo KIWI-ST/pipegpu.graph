@@ -185,6 +185,7 @@ class EarthScene {
                 rewrite: true,
                 detail: {
                     offset: 0,
+                    size: 32,
                     byteLength: 4 * 4 * 4 * 2,
                     rawData: rawData
                 }
@@ -553,8 +554,18 @@ class EarthScene {
             meshDataPack.meshlets.forEach(meshlet => {
                 const meshletRuntimeID = this.meshletDescCursor;
                 const meshletDesc: MeshletDesc = {
-                    self_bounding_sphere: new Vec4().set(meshlet.selfParentBounds[0], meshlet.selfParentBounds[1], meshlet.selfParentBounds[2], meshlet.selfParentBounds[3]),
-                    parent_bounding_sphere: new Vec4().set(meshlet.selfParentBounds[5], meshlet.selfParentBounds[6], meshlet.selfParentBounds[7], meshlet.selfParentBounds[8]),
+                    self_bounding_sphere: new Vec4().set(
+                        meshlet.selfParentBounds[0],
+                        meshlet.selfParentBounds[1],
+                        meshlet.selfParentBounds[2],
+                        meshlet.selfParentBounds[3]
+                    ),
+                    parent_bounding_sphere: new Vec4().set(
+                        meshlet.selfParentBounds[5],
+                        meshlet.selfParentBounds[6],
+                        meshlet.selfParentBounds[7],
+                        meshlet.selfParentBounds[8]
+                    ),
                     self_error: meshlet.selfParentBounds[4],
                     parent_error: meshlet.selfParentBounds[9],
                     cluster_id: meshletRuntimeID,
