@@ -44,7 +44,6 @@ class EarthManager {
     private initCameraChanged = () => {
         this.camera.changed.addEventListener(_e => {
             this.updateQuadtreeTileByDistanceError();
-            console.log(this.getVisualRevealTiles());
         });
     }
 

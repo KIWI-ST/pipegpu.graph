@@ -77,7 +77,7 @@ const nanoEntry = async (
 ) => {
     const lng: number = 116.3975392;
     const lat: number = 39.916;
-    const alt: number = 100;
+    const alt: number = 0;
     const viewportWidth = 400;
     const viewportHeight = 400;
 
@@ -118,7 +118,7 @@ const nanoEntry = async (
 
     const depthStencilAttachment = compiler.createDepthStencilAttachment({
         texture: depthTexture,
-        depthCompareFunction: 'always', // `less-equal`
+        depthCompareFunction: 'less-equal',
         depthLoadStoreFormat: 'clearStore',
     });
 
@@ -137,7 +137,8 @@ const nanoEntry = async (
 
     // 
     const earthScene: EarthScene = new EarthScene(
-        `http://127.0.0.1/output/Azalea_LowPoly/`,
+        `http://127.0.0.1/output/BistroExterior/`,
+        // `http://127.0.0.1/output/Azalea_LowPoly/`,
         SCENE_CAMERA,
         viewportWidth,
         viewportHeight,
@@ -198,8 +199,8 @@ const nanoEntry = async (
         depthStencilAttachment: depthStencilAttachment,
         uniforms: new Uniforms(),
         primitiveDesc: {
-            primitiveTopology: `triangle-list`,
-            // cullFormat: 'backCCW'
+            primitiveTopology: 'triangle-list',
+            cullFormat: 'backCW'
         }
     };
 

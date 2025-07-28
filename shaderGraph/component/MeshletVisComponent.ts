@@ -79,7 +79,7 @@ fn vs_main(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> 
     f.triangle_id = vi;
     f.instance_id = instance_index_order;
     f.uv = vec2<f32>(v.tx, v.ty);
-    f.position = position * instance.geo_model  * view_projection.view *  view_projection.projection;   // instance.model *
+    f.position = position * instance.geo_model * view_projection.view * view_projection.projection;   //  *
 
     return f;
 }

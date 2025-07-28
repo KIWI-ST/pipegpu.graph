@@ -74,7 +74,7 @@ class EarthScene {
     private instanceOrderQueue: Uint32Array[] = [];
     private indexedIndirectQueue: Uint32Array[] = [];
 
-    private vertexByteOffset: number = 0;
+    private vertexSizeOffset: number = 0;
     private meshletIndexedOffset: number = 0;
     private indexSizeOffset: number = 0;
 
@@ -248,11 +248,11 @@ class EarthScene {
                     const instanceMatrix = Cesium.Matrix4.fromArray(instanceDesc.model.value);
                     let instanceMatrixData: number[] = [];
                     let instanceMatrixT = new Cesium.Matrix4();
-                    // Cesium.Matrix4.transpose(instanceMatrix, instanceMatrixT);
-                    // let instanceMatrixTData: number[] = [];
+                    Cesium.Matrix4.transpose(instanceMatrix, instanceMatrixT);
+                    let instanceMatrixTData: number[] = [];
 
-                    Cesium.Matrix4.toArray(instanceMatrix, instanceMatrixData);
-                    modelView.set(instanceMatrixData);
+                    Cesium.Matrix4.toArray(instanceMatrixT, instanceMatrixTData);
+                    modelView.set(instanceMatrixTData);
 
 
                     let locationMatrixT = new Cesium.Matrix4();
@@ -287,7 +287,7 @@ class EarthScene {
             }
         }
         this.instanceDescBuffer = this.compiler.createStorageBuffer({
-            totalByteLength: this.maxInstanceNum * 80,
+            totalByteLength: this.maxInstanceNum * 144,
             handler: handler,
         });
     }
@@ -519,7 +519,7 @@ class EarthScene {
             });
             this.meshDescQueue.push({
                 bounding_sphere: meshDataPack.sphereBound,
-                vertex_offset: this.vertexByteOffset,
+                vertex_offset: this.vertexSizeOffset,
                 mesh_id: meshDescRuntimeID,
                 meshlet_count: meshDataPack.meshlets.length,
                 material_id: 0, // TODO material 
@@ -558,7 +558,7 @@ class EarthScene {
                     index_count: meshlet.indices.length,
                     instance_count: 1,
                     first_index: this.indexSizeOffset + firstIndex,
-                    vertex_offset: this.vertexByteOffset,
+                    vertex_offset: this.vertexSizeOffset,
                     first_instance: 0,                  // TODO, 组织 instance 时，根据 instance 序号
                 };
                 ddibs.push(diib);
@@ -566,7 +566,7 @@ class EarthScene {
             });
             this.runtimeMeshIDWithIndexedIndirectsMap.set(meshDescRuntimeID, ddibs);
             this.indexSizeOffset += this.statsMeshletIndicesNum(meshDataPack);
-            this.vertexByteOffset += meshDataPack.vertices.byteLength;
+            this.vertexSizeOffset += meshDataPack.vertices.length;
             this.meshDescCursor++; // 处理 mesh 偏移
         }
         // instance 
