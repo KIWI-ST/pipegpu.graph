@@ -1,7 +1,7 @@
+import * as Cesium from 'cesium';
+
 import { Mat4, Vec4 } from "pipegpu.matrix";
 import { fetchHDMF, type BoundingSphere, type MaterialType, type MeshDataPack } from "../../util/fetchHDMF";
-
-import * as Cesium from 'cesium';
 import { EarthManager } from "./EarthManager";
 import { fetchJSON, type Instance, type InstanceDataPack } from "../../util/fetchJSON";
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from "../../util/fetchKTX";
@@ -9,7 +9,7 @@ import { webMercatorTileSchema } from "./earth/QuadtreeTileSchema";
 import { WGS84 } from "./earth/Ellipsoid";
 import type { Compiler, Context, IndexedIndirectBuffer, StorageBuffer, UniformBuffer, UniformHandle } from "pipegpu";
 import type { IndexedStorageBuffer } from "pipegpu/src/res/buffer/IndexedStorageBuffer";
-import type { Handle1D, Handle2D } from "pipegpu/src/res/buffer/BaseBuffer";
+import type { Handle1D, Handle2D, HandleDetail } from "pipegpu/src/res/buffer/BaseBuffer";
 
 type InstanceDesc = {
     model: Mat4,
@@ -43,14 +43,6 @@ type DrawIndexedIndirect = {
     first_instance: number,
 };
 
-type DebugVertex = {
-    x: number,
-    y: number,
-    z: number,
-};
-
-const debugVertices: DebugVertex[] = [];
-
 class EarthScene {
 
     private compiler: Compiler;
@@ -59,7 +51,6 @@ class EarthScene {
     private sceneTileMap: Map<string, InstanceDataPack> = new Map();                                // instances
     private sceneMeshMap: Map<string, MeshDataPack> = new Map();                                    // meshes
     private sceneTextureMap: Map<string, KTXPackData> = new Map();                                  // texture array
-    private sceneModelMatrix: Cesium.Matrix4;                                                       // 场景 ModelMatrix (经纬度偏移)
 
     private instanceDescRuntimeMap: Map<string, { runtimeID: number }> = new Map();                 // 记录运行时 isntance 的 ID
     private meshDescRuntimeMap: Map<string, { runtimeID: number }> = new Map();                     // 记录运行时 mesh 的 ID
@@ -83,9 +74,9 @@ class EarthScene {
     private instanceOrderQueue: Uint32Array[] = [];
     private indexedIndirectQueue: Uint32Array[] = [];
 
-    private vertexOffset: number = 0;
+    private vertexByteOffset: number = 0;
     private meshletIndexedOffset: number = 0;
-    private indexOffset: number = 0;
+    private indexSizeOffset: number = 0;
 
     private viewProjectionBuffer!: UniformBuffer;                // 视域矩阵 buffer          -- done
     private vertexBuffer!: StorageBuffer;                        // 密集型顶点 buffer        -- done
@@ -108,6 +99,10 @@ class EarthScene {
 
     private maxInstanceNum = 100000;                             // 最大物件数
 
+    private lng: number = 0;                                     // 经度
+    private lat: number = 0;                                     // 纬度
+    private alt: number = 0;                                     // 高程
+
     constructor(
         rootUri: string,
         syncCamera: Cesium.Camera,
@@ -122,13 +117,9 @@ class EarthScene {
         }
     ) {
         // scene root position.
-        {
-            const lng: number = opts?.lng || 116.3955392;
-            const lat: number = opts?.lat || 39.916;
-            const alt: number = opts?.alt || 0;
-            const spacePosition = Cesium.Cartesian3.fromDegrees(lng, lat, 0);
-            this.sceneModelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(spacePosition);
-        }
+        this.lng = opts.lng || 116.3955392;
+        this.lat = opts.lat || 39.916;
+        this.alt = opts.alt || 0;
         this.rootUri = rootUri;
         this.syncCamera = syncCamera;
         this.earthManager = new EarthManager({
@@ -145,49 +136,24 @@ class EarthScene {
 
     private initViewPorjectionBuffer = () => {
         const handler: Handle1D = () => {
-            const rawData = new Float32Array([
-                // projection matrix
-                this.syncCamera.frustum.projectionMatrix[0],
-                this.syncCamera.frustum.projectionMatrix[1],
-                this.syncCamera.frustum.projectionMatrix[2],
-                this.syncCamera.frustum.projectionMatrix[3],
-                this.syncCamera.frustum.projectionMatrix[4],
-                this.syncCamera.frustum.projectionMatrix[5],
-                this.syncCamera.frustum.projectionMatrix[6],
-                this.syncCamera.frustum.projectionMatrix[7],
-                this.syncCamera.frustum.projectionMatrix[8],
-                this.syncCamera.frustum.projectionMatrix[9],
-                this.syncCamera.frustum.projectionMatrix[10],
-                this.syncCamera.frustum.projectionMatrix[11],
-                this.syncCamera.frustum.projectionMatrix[12],
-                this.syncCamera.frustum.projectionMatrix[13],
-                this.syncCamera.frustum.projectionMatrix[14],
-                this.syncCamera.frustum.projectionMatrix[15],
-                // view matrix
-                this.syncCamera.viewMatrix[0],
-                this.syncCamera.viewMatrix[1],
-                this.syncCamera.viewMatrix[2],
-                this.syncCamera.viewMatrix[3],
-                this.syncCamera.viewMatrix[4],
-                this.syncCamera.viewMatrix[5],
-                this.syncCamera.viewMatrix[6],
-                this.syncCamera.viewMatrix[7],
-                this.syncCamera.viewMatrix[8],
-                this.syncCamera.viewMatrix[9],
-                this.syncCamera.viewMatrix[10],
-                this.syncCamera.viewMatrix[11],
-                this.syncCamera.viewMatrix[12],
-                this.syncCamera.viewMatrix[13],
-                this.syncCamera.viewMatrix[14],
-                this.syncCamera.viewMatrix[15],
-            ]);
+            // cesium 默认是列主序，需转换成行主序交给 webgpu
+            let projectionData: number[] = [];
+            let projectionMatrix = new Cesium.Matrix4();
+            let viewMatrix = new Cesium.Matrix4();
+            Cesium.Matrix4.transpose(this.syncCamera.frustum.projectionMatrix, projectionMatrix);
+            Cesium.Matrix4.toArray(projectionMatrix, projectionData);
+            let viewData: number[] = [];
+            Cesium.Matrix4.transpose(this.syncCamera.viewMatrix, viewMatrix);
+            Cesium.Matrix4.toArray(viewMatrix, viewData);
+            const rawDataArr = [...projectionData, ...viewData];
+            const rawDataF32 = new Float32Array(rawDataArr);
             return {
                 rewrite: true,
                 detail: {
                     offset: 0,
                     size: 32,
-                    byteLength: 4 * 4 * 4 * 2,
-                    rawData: rawData
+                    byteLength: 32 * 4,
+                    rawData: rawDataF32,
                 }
             }
         };
@@ -199,21 +165,11 @@ class EarthScene {
 
     private initVertexBuffer = () => {
         const handler: Handle2D = () => {
-            // vertex snippet align byte length is 32
+            // 顶点对齐长度 32
             if (this.vertexQueue.length) {
-                const details: any = [];
+                const details: HandleDetail[] = [];
                 let rawData = this.vertexQueue.shift();
                 while (rawData) {
-                    // DEBUG::
-                    {
-                        for (let k = 0; k < rawData.length; k += 9) {
-                            debugVertices.push({
-                                x: rawData[k],
-                                y: rawData[k + 1],
-                                z: rawData[k + 2]
-                            });
-                        }
-                    }
                     details.push({
                         byteLength: rawData.byteLength,
                         offset: this.sceneVertexBufferOffset,
@@ -243,7 +199,7 @@ class EarthScene {
     private initInstanceOrderBuffer = () => {
         const handler: Handle2D = () => {
             if (this.instanceOrderQueue.length) {
-                const details: any = [];
+                const details: HandleDetail[] = [];
                 let rawData = this.instanceOrderQueue.shift();
                 while (rawData) {
                     details.push({
@@ -274,35 +230,44 @@ class EarthScene {
     }
 
     private initInstanceDescBuffer = () => {
+        const spacePosition = Cesium.Cartesian3.fromDegrees(this.lng, this.lat, 0);
+        const locationMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(spacePosition);
         const handler: Handle2D = () => {
             if (this.instanceDescQueue.length) {
-                const details: any = [];
+                const details: HandleDetail[] = [];
                 let instanceDesc: InstanceDesc | undefined = this.instanceDescQueue.shift();
                 while (instanceDesc) {
-                    // let instanceMatrix = new Cesium.Matrix4(
-                    //     instanceDesc.model.value[0], instanceDesc.model.value[1], instanceDesc.model.value[2], instanceDesc.model.value[3],
-                    //     instanceDesc.model.value[4], instanceDesc.model.value[5], instanceDesc.model.value[6], instanceDesc.model.value[7],
-                    //     instanceDesc.model.value[8], instanceDesc.model.value[9], instanceDesc.model.value[10], instanceDesc.model.value[11],
-                    //     instanceDesc.model.value[12], instanceDesc.model.value[13], instanceDesc.model.value[14], instanceDesc.model.value[15]
-                    // );
-                    let modelMatrix = new Cesium.Matrix4();
-                    // Cesium.Matrix4.multiply(serverModelMatrix, instanceMatrix, modelMatrix);
-                    modelMatrix = this.sceneModelMatrix;
-                    const buffer = new ArrayBuffer(80);
-                    const f32view = new Float32Array(buffer, 0, 16);
-                    const u32View = new Float32Array(buffer, f32view.byteLength, 1);
-                    f32view.set([
-                        modelMatrix[0], modelMatrix[1], modelMatrix[2], modelMatrix[3],
-                        modelMatrix[4], modelMatrix[5], modelMatrix[6], modelMatrix[7],
-                        modelMatrix[8], modelMatrix[9], modelMatrix[10], modelMatrix[11],
-                        modelMatrix[12], modelMatrix[13], modelMatrix[14], modelMatrix[15],
-                    ]);
-                    u32View.set([
-                        instanceDesc.mesh_id
-                    ]);
+                    const buffer = new ArrayBuffer(144);
+                    const geoModelView = new Float32Array(buffer, 0, 16);
+                    const modelView = new Float32Array(buffer, 64, 16);
+                    const meshIDView = new Uint32Array(buffer, 128, 1);
+                    // let instanceMatrix = Cesium.Matrix4.fromArray(instanceDesc.model.value);
+                    // let instanceMatrixTranspose = new Cesium.Matrix4();
+                    // Cesium.Matrix4.transpose(instanceMatrix, instanceMatrixTranspose);
+                    // const instanceMatrix = Cesium.Matrix4.IDENTITY;
+                    const instanceMatrix = Cesium.Matrix4.fromArray(instanceDesc.model.value);
+                    let instanceMatrixData: number[] = [];
+                    let instanceMatrixT = new Cesium.Matrix4();
+                    // Cesium.Matrix4.transpose(instanceMatrix, instanceMatrixT);
+                    // let instanceMatrixTData: number[] = [];
+
+                    Cesium.Matrix4.toArray(instanceMatrix, instanceMatrixData);
+                    modelView.set(instanceMatrixData);
+
+
+                    let locationMatrixT = new Cesium.Matrix4();
+                    let locationMatrixTData: number[] = [];
+                    Cesium.Matrix4.transpose(locationMatrix, locationMatrixT);
+                    Cesium.Matrix4.toArray(locationMatrixT, locationMatrixTData);
+                    // Cesium.Matrix4.multiply(locationMatrix, instanceMatrix, locationInstanceMatrix);
+                    geoModelView.set(locationMatrixTData);
+
+                    // let mat4x4Data: number[] = [];
+                    // Cesium.Matrix4.toArray(mat4x4, mat4x4Data);
+                    // f32view.set(mat4x4Data);
+                    meshIDView.set([instanceDesc.mesh_id]);
                     details.push({
-                        // instance align byte length
-                        byteLength: 80,
+                        byteLength: 144,
                         offset: this.sceneInstanceDescBufferOffset,
                         rawData: buffer,
                     });
@@ -330,16 +295,25 @@ class EarthScene {
     private initMeshDescBuffer = () => {
         const hanlder: Handle2D = () => {
             if (this.meshDescQueue.length) {
-                const details: any = [];
+                const details: HandleDetail[] = [];
                 let meshDesc: MeshDesc | undefined = this.meshDescQueue.shift();
                 while (meshDesc) {
                     const buffer = new ArrayBuffer(32);
                     const f32view = new Float32Array(buffer, 0, 4);
                     const u32View = new Float32Array(buffer, f32view.byteLength, 4);
-                    f32view.set([meshDesc.bounding_sphere.cx, meshDesc.bounding_sphere.cy, meshDesc.bounding_sphere.cz, meshDesc.bounding_sphere.r]);
-                    u32View.set([meshDesc.vertex_offset, meshDesc.mesh_id, meshDesc.meshlet_count, meshDesc.material_id]);
+                    f32view.set([
+                        meshDesc.bounding_sphere.cx,
+                        meshDesc.bounding_sphere.cy,
+                        meshDesc.bounding_sphere.cz,
+                        meshDesc.bounding_sphere.r
+                    ]);
+                    u32View.set([
+                        meshDesc.vertex_offset,
+                        meshDesc.mesh_id,
+                        meshDesc.meshlet_count,
+                        meshDesc.material_id
+                    ]);
                     details.push({
-                        // instance align byte length
                         byteLength: 32,
                         offset: this.sceneInstanceDescBufferOffset,
                         rawData: buffer,
@@ -367,30 +341,39 @@ class EarthScene {
     private initMeshletDescBuffer = () => {
         const hanlder: Handle2D = () => {
             if (this.meshletDescQueue.length) {
-                const details: any = [];
+                const details: HandleDetail[] = [];
                 let meshletDesc: MeshletDesc | undefined = this.meshletDescQueue.shift();
                 while (meshletDesc) {
                     const buffer = new ArrayBuffer(64);
-                    const f32view = new Float32Array(buffer, 0, 10);
-                    const u32View = new Float32Array(buffer, f32view.byteLength, 4);
-                    f32view.set([
+                    const meshletViews = {
+                        self_bounding_sphere: new Float32Array(buffer, 0, 4),
+                        parent_bounding_sphere: new Float32Array(buffer, 16, 4),
+                        self_error: new Float32Array(buffer, 32, 1),
+                        parent_error: new Float32Array(buffer, 36, 1),
+                        cluster_id: new Uint32Array(buffer, 40, 1),
+                        mesh_id: new Uint32Array(buffer, 44, 1),
+                        index_count: new Uint32Array(buffer, 48, 1),
+                        index_offset: new Uint32Array(buffer, 52, 1),
+                    };
+                    meshletViews.self_bounding_sphere.set([
                         meshletDesc.self_bounding_sphere.x,
                         meshletDesc.self_bounding_sphere.y,
                         meshletDesc.self_bounding_sphere.z,
                         meshletDesc.self_bounding_sphere.w,
+                    ]);
+                    meshletViews.parent_bounding_sphere.set([
                         meshletDesc.parent_bounding_sphere.x,
                         meshletDesc.parent_bounding_sphere.y,
                         meshletDesc.parent_bounding_sphere.z,
                         meshletDesc.parent_bounding_sphere.w,
-                        meshletDesc.self_error,
-                        meshletDesc.parent_error,
                     ]);
-                    u32View.set([
-                        meshletDesc.cluster_id,
-                        meshletDesc.mesh_id,
-                        meshletDesc.index_count,
-                        meshletDesc.index_offset,
-                    ]);
+                    meshletViews.self_error.set([meshletDesc.self_error]);
+                    meshletViews.parent_error.set([meshletDesc.parent_error]);
+                    meshletViews.cluster_id.set([meshletDesc.cluster_id]);
+                    meshletViews.mesh_id.set([meshletDesc.mesh_id]);
+                    meshletViews.index_count.set([meshletDesc.index_count]);
+                    meshletViews.index_offset.set([meshletDesc.index_offset]);
+
                     details.push({
                         byteLength: 64,
                         offset: this.sceneMeshletBufferOffset,
@@ -419,7 +402,7 @@ class EarthScene {
     private initIndexedIndirectBuffer = () => {
         const handler: Handle2D = () => {
             if (this.indexedIndirectQueue.length) {
-                const details: any = [];
+                const details: HandleDetail[] = [];
                 let indexedIndirect = this.indexedIndirectQueue.shift();
                 while (indexedIndirect) {
                     details.push({
@@ -453,16 +436,16 @@ class EarthScene {
     private initIndexedStorageBuffer = () => {
         const handler: Handle2D = () => {
             if (this.indexedQueue.length) {
-                const details: any = [];
-                let indexed = this.indexedQueue.shift();
-                while (indexed) {
+                const details: HandleDetail[] = [];
+                let indexedData = this.indexedQueue.shift();
+                while (indexedData) {
                     details.push({
-                        byteLength: indexed.byteLength,
+                        byteLength: indexedData.byteLength,
                         offset: this.sceneIndexedStorageBufferOffset,
-                        rawData: indexed,
+                        rawData: indexedData,
                     });
-                    this.sceneIndexedStorageBufferOffset += indexed.byteLength;
-                    indexed = this.indexedIndirectQueue.shift();
+                    this.sceneIndexedStorageBufferOffset += indexedData.byteLength;
+                    indexedData = this.indexedQueue.shift();
                 }
                 return {
                     rewrite: true,
@@ -485,26 +468,21 @@ class EarthScene {
     }
 
     private initIndirectDrawCountBuffer = () => {
-        // const handler: Handle2D = () => {
-        //     const details: any = [];
-        //     details.push({
-        //         byteLength: 4,
-        //         offset: 0,
-        //         rawData: new Uint32Array([this.maxDrawCount]),
-        //     });
-        //     return {
-        //         rewrite: true,
-        //         details: details,
-        //     }
-        // }
-        // this.indirectDrawCountBuffer = this.compiler.createStorageBuffer({
-        //     totalByteLength: 4,
-        //     handler: handler,
-        //     bufferUsageFlags: GPUBufferUsage.INDIRECT,
-        // });
+        const handler: Handle2D = () => {
+            const details: HandleDetail[] = [];
+            details.push({
+                byteLength: 4,
+                offset: 0,
+                rawData: new Uint32Array([this.maxDrawCount]),
+            });
+            return {
+                rewrite: true,
+                details: details,
+            }
+        }
         this.indirectDrawCountBuffer = this.compiler.createStorageBuffer({
             totalByteLength: 4,
-            rawData: [new Uint32Array([75])],
+            handler: handler,
             bufferUsageFlags: GPUBufferUsage.INDIRECT,
         });
     }
@@ -541,7 +519,7 @@ class EarthScene {
             });
             this.meshDescQueue.push({
                 bounding_sphere: meshDataPack.sphereBound,
-                vertex_offset: this.vertexOffset,
+                vertex_offset: this.vertexByteOffset,
                 mesh_id: meshDescRuntimeID,
                 meshlet_count: meshDataPack.meshlets.length,
                 material_id: 0, // TODO material 
@@ -579,16 +557,16 @@ class EarthScene {
                 const diib: DrawIndexedIndirect = {
                     index_count: meshlet.indices.length,
                     instance_count: 1,
-                    first_index: this.indexOffset + firstIndex,
-                    vertex_offset: this.vertexOffset,
+                    first_index: this.indexSizeOffset + firstIndex,
+                    vertex_offset: this.vertexByteOffset,
                     first_instance: 0,                  // TODO, 组织 instance 时，根据 instance 序号
                 };
                 ddibs.push(diib);
                 firstIndex += meshlet.indices.length;   // this.meshletdescoff++; 处理 meshlet 偏移
             });
             this.runtimeMeshIDWithIndexedIndirectsMap.set(meshDescRuntimeID, ddibs);
-            this.indexOffset += this.statsMeshletIndicesNum(meshDataPack);
-            this.vertexOffset += meshDataPack.vertices.byteLength;
+            this.indexSizeOffset += this.statsMeshletIndicesNum(meshDataPack);
+            this.vertexByteOffset += meshDataPack.vertices.byteLength;
             this.meshDescCursor++; // 处理 mesh 偏移
         }
         // instance 
@@ -625,17 +603,10 @@ class EarthScene {
         }
     }
 
-    // refresh buffer at frame begin.
-    public refreshBuffer = () => {
-        this.indirectDrawCountBuffer.getGpuBuffer(null, 'frameBegin');
-        this.indexedIndirectBuffer.getGpuBuffer(null, 'frameBegin');
-        this.indexedStoragebuffer.getGpuBuffer(null, 'frameBegin');
-    }
-
     // update cpu stage data.
     public updateSceneData = async () => {
         const visualRevealTiles = this.earthManager.getVisualRevealTiles();
-        if (visualRevealTiles.length === 0) {
+        if (!visualRevealTiles || visualRevealTiles.length === 0) {
             return;
         }
         let remain = this.sceneTaskLimit;
@@ -816,23 +787,6 @@ class EarthScene {
     public printDebugInfo(): void {
         const limit: number = 10;
         let step: number = 0;
-        debugVertices.forEach(vertex => {
-            if (step > limit) {
-                return;
-            }
-
-            // 计算 MVP 矩阵结果，是否在场景中
-            let vpMatrix = new Cesium.Matrix4();
-            Cesium.Matrix4.multiply(this.syncCamera.frustum.projectionMatrix, this.syncCamera.viewMatrix, vpMatrix);
-            let mvpMatrix = new Cesium.Matrix4();
-            Cesium.Matrix4.multiply(vpMatrix, this.sceneModelMatrix, mvpMatrix);
-
-            const position = new Cesium.Cartesian4(vertex.x, vertex.y, vertex.z, 1.0);
-            let ndc = new Cesium.Cartesian4();
-            Cesium.Matrix4.multiplyByVector(mvpMatrix, position, ndc);
-
-            console.log(`step: ${step++} x: ${ndc.x / ndc.w} y: ${ndc.y / ndc.w} z: ${ndc.z / ndc.w}`);
-        });
     }
 
 }

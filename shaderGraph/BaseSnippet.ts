@@ -53,7 +53,7 @@ type SnippetFormat =
     | 'mesh_desc_snippet'
     | 'material_phone_desc_snippet'
     | 'storage_array_u32_snippet'
-    | 'storage_index_snippet'
+    | 'indexed_storage_snippet'
     | 'storage_atomic_u32_snippet'
     | 'point_light_desc_snippet'
     | 'texture_2d_array_snippet'

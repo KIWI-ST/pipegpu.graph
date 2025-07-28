@@ -8,7 +8,7 @@ import type { InstanceDescSnippet } from "../snippet/InstanceDescSnippet";
 import type { MeshDescSnippet } from "../snippet/MeshDescSnippet";
 import type { MaterialSnippet } from "../snippet/MaterialSnippet";
 import type { StorageArrayU32Snippet } from "../snippet/StorageArrayU32Snippet";
-import type { StorageIndexSnippet } from "../snippet/StorageIndexSnippet";
+import type { IndexStorageSnippet } from "../snippet/IndexedStorageSnippet";
 import type { PointLightSnippet } from "../snippet/PointLightSnippet";
 import type { Texture2DArraySnippet } from "../snippet/Texture2DArraySnippet";
 import type { TextureSamplerSnippet } from "../snippet/TextureSamplerSnippet";

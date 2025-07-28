@@ -8,7 +8,7 @@ import type { InstanceDescSnippet } from "../snippet/InstanceDescSnippet";
 import type { MeshDescSnippet } from "../snippet/MeshDescSnippet";
 import type { MaterialSnippet } from "../snippet/MaterialSnippet";
 import type { StorageArrayU32Snippet } from "../snippet/StorageArrayU32Snippet";
-import type { StorageIndexSnippet } from "../snippet/StorageIndexSnippet";
+import type { IndexedStorageSnippet } from "../snippet/IndexedStorageSnippet";
 import type { PointLightSnippet } from "../snippet/PointLightSnippet";
 import type { Texture2DArraySnippet } from "../snippet/Texture2DArraySnippet";
 import type { TextureSamplerSnippet } from "../snippet/TextureSamplerSnippet";
@@ -18,7 +18,7 @@ import type { IndexedStorageBuffer } from "pipegpu/src/res/buffer/IndexedStorage
 /**
  * 
  */
-class DebugMeshletComponent extends RenderComponent {
+class MeshletVisComponent extends RenderComponent {
 
     private fragmentSnippet: FragmentDescSnippet;
     private vertexSnippet: VertexSnippet;
@@ -26,7 +26,7 @@ class DebugMeshletComponent extends RenderComponent {
     private viewSnippet: ViewSnippet;
     private instanceDescSnippet: InstanceDescSnippet;
     private meshDescSnippet: MeshDescSnippet;
-    private storageIndexedSnippet: StorageIndexSnippet;
+    private indexedStorageSnippet: IndexedStorageSnippet;
     private instanceOrderSnippet: StorageArrayU32Snippet;
 
     constructor(
@@ -38,7 +38,7 @@ class DebugMeshletComponent extends RenderComponent {
         viewProjectionSnippet: ViewProjectionSnippet,
         viewSnippet: ViewSnippet,
         meshDescSnippet: MeshDescSnippet,
-        storageIndexedSnippet: StorageIndexSnippet,
+        indexedStorageSnippet: IndexedStorageSnippet,
         instanceOrderSnippet: StorageArrayU32Snippet,
     ) {
         super(context, compiler);
@@ -48,7 +48,7 @@ class DebugMeshletComponent extends RenderComponent {
         this.viewSnippet = viewSnippet;
         this.instanceDescSnippet = instanceDescSnippet;
         this.meshDescSnippet = meshDescSnippet;
-        this.storageIndexedSnippet = storageIndexedSnippet;
+        this.indexedStorageSnippet = indexedStorageSnippet;
         this.instanceOrderSnippet = instanceOrderSnippet;
 
         this.append(fragmentSnippet);
@@ -57,7 +57,7 @@ class DebugMeshletComponent extends RenderComponent {
         this.append(viewSnippet);
         this.append(instanceDescSnippet);
         this.append(meshDescSnippet);
-        this.append(storageIndexedSnippet);
+        this.append(indexedStorageSnippet);
         this.append(instanceOrderSnippet);
     }
 
@@ -69,49 +69,26 @@ class DebugMeshletComponent extends RenderComponent {
 fn vs_main(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> ${this.fragmentSnippet.getStructName()}
 {
     var f: ${this.fragmentSnippet.getStructName()};
-    // let v: VERTEX = ${this.vertexSnippet.getVariableName()}[vi];
-    // let instance_index_order = ${this.instanceOrderSnippet.getVariableName()}[ii];
-    // let instance = ${this.instanceDescSnippet.getVariableName()}[instance_index_order];
-    // let mat4 = ${this.viewProjectionSnippet.getVariableName()}.projection * ${this.viewProjectionSnippet.getVariableName()}.view * instance.model;
-    // let position = vec4<f32>(v.px, v.py, v.pz, 1.0);
-    // f.position = vec4<f32>(f32(vi)/1024.0, f32(ii)/1024.0, 0.0, 1.0);
-        if(ii == 0 ){
-            f.position = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-        }
-        else if(ii == 1){
-            f.position = vec4<f32>(1.0, 1.0, 0.0, 1.0);
-        }
-        else{
-            f.position = vec4<f32>(0.0, 1.0, 0.0, 1.0);
-        }
-    
+    let v: VERTEX = ${this.vertexSnippet.getVariableName()}[vi];
+    let instance_index_order = ${this.instanceOrderSnippet.getVariableName()}[ii];
+    let instance = ${this.instanceDescSnippet.getVariableName()}[instance_index_order];
+    let position = vec4<f32>(v.px, v.py, v.pz, 1.0);
+    let view_projection = ${this.viewProjectionSnippet.getVariableName()};
 
-    // if(u32(ii%3) == 0u){
-    //     f.position = vec4<f32>(0.5, 0.5, 0.99999, 1.0);
-    // }
-    // if(u32(ii%3) == 1u){
-    //     f.position = vec4<f32>(0.0, 0.0, 0.99999, 1.0);
-    // }
-    // if(u32(ii%3) == 2u){
-    //     f.position = vec4<f32>(-0.5, -0.9, 0.99999, 1.0);
-    // }
-    // f.position = mat4 * position;
-    // f.position_ws = instance.model * position;
-    // f.normal_ws = vec3<f32>(v.nx, v.ny, v.nz);
-    // f.triangle_id = vi;
-    // f.instance_id = instance_index_order;
-    // f.uv = vec2<f32>(v.u, v.v);
+    f.normal_ws = vec3<f32>(v.nx, v.ny, v.nz);
+    f.triangle_id = vi;
+    f.instance_id = instance_index_order;
+    f.uv = vec2<f32>(v.tx, v.ty);
+    f.position = position * instance.geo_model  * view_projection.view *  view_projection.projection;   // instance.model *
 
     return f;
 }
 
 @fragment
-fn fs_main(input: ${this.fragmentSnippet.getStructName()}) -> @location(0) vec4<f32>
+fn fs_main(f: ${this.fragmentSnippet.getStructName()}) -> @location(0) vec4<f32>
 {
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
-    // let instance = ${this.instanceDescSnippet.getVariableName()}[input.instance_id];
-    // let mesh_id = instance.mesh_id;
-    // return vec4<f32>(input.normal_ws, 1.0);
+    // return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    return vec4<f32>(f.uv.x, f.uv.y, f32(f.triangle_id), 1.0);
 }
         
         `;
@@ -122,6 +99,6 @@ fn fs_main(input: ${this.fragmentSnippet.getStructName()}) -> @location(0) vec4<
 }
 
 export {
-    DebugMeshletComponent
+    MeshletVisComponent
 }
 

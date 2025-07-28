@@ -161,14 +161,14 @@ type MeshDataPack = {
  * {
  *    float px, py, pz;                                               
  *    float nx, ny, nz;                                               
- *    float tx, ty, tz;     
+ *    float tx, ty;
  * };
  * 
  * @param vertices 
  * @param meshlets 
  */
 const computeBounds = (vertices: Float32Array, meshlets: Meshlet[]) => {
-    const lerp: number = 9;
+    const lerp: number = 8;
     const aabb: AABB = {
         minx: 0,
         miny: 0,

@@ -41,14 +41,14 @@ class VertexSnippet extends BaseSnippet {
         
 struct ${this.shaderCode.structName}
 {
-    px:f32,
-    py:f32,
-    pz:f32,
-    nx:f32,
-    ny:f32,
-    nz:f32,
-    u:f32,
-    v:f32,
+    px: f32,
+    py: f32,
+    pz: f32,
+    nx: f32,
+    ny: f32,
+    nz: f32,
+    tx: f32,
+    ty: f32,
 };
         
         `;

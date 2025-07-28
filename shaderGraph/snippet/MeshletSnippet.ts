@@ -27,7 +27,7 @@ class MeshletDescSnippet extends BaseSnippet {
 struct ${this.shaderCode.structName}
 {
     self_bounding_sphere: vec4<f32>,
-    parent_bounding_sphere: vec3<f32>,
+    parent_bounding_sphere: vec4<f32>,
     self_error: f32,
     parent_error: f32,
     cluster_id: u32,

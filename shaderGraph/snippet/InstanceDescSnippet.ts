@@ -1,6 +1,6 @@
 import type { Handle2D } from "pipegpu/src/res/buffer/BaseBuffer";
 import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
-import { Compiler, StorageBuffer, type TypedArray2DFormat } from "pipegpu";
+import { Compiler, StorageBuffer } from "pipegpu";
 
 /**
  * 
@@ -39,6 +39,7 @@ class InstanceDescSnippet extends BaseSnippet {
         
 struct ${this.shaderCode.structName}
 {
+    geo_model: mat4x4<f32>,
     model: mat4x4<f32>,
     mesh_id: u32,
 };

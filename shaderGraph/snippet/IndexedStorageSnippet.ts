@@ -4,13 +4,13 @@ import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSni
 /**
  * 
  */
-class StorageIndexSnippet extends BaseSnippet {
+class IndexedStorageSnippet extends BaseSnippet {
     /**
      * 
      * @param compiler 
      */
     constructor(compiler: Compiler) {
-        super(compiler, 'storage_index_snippet');
+        super(compiler, 'indexed_storage_snippet');
     }
 
     /**
@@ -42,5 +42,5 @@ class StorageIndexSnippet extends BaseSnippet {
 }
 
 export {
-    StorageIndexSnippet
+    IndexedStorageSnippet
 }

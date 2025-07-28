@@ -29,16 +29,10 @@ class DebugSnippet extends BaseSnippet {
 
 struct ${this.shaderCode.structName}
 {
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
-    u: f32,
-    v: f32,
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
+    m0: vec4<f32>,
+    m1: vec4<f32>,
+    m2: vec4<f32>,
+    m3: vec4<f32>,
 };
         
         `;
