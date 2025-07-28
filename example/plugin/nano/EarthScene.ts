@@ -254,7 +254,6 @@ class EarthScene {
                     Cesium.Matrix4.toArray(instanceMatrixT, instanceMatrixTData);
                     modelView.set(instanceMatrixTData);
 
-
                     let locationMatrixT = new Cesium.Matrix4();
                     let locationMatrixTData: number[] = [];
                     Cesium.Matrix4.transpose(locationMatrix, locationMatrixT);
@@ -474,6 +473,7 @@ class EarthScene {
                 byteLength: 4,
                 offset: 0,
                 rawData: new Uint32Array([this.maxDrawCount]),
+                // rawData: new Uint32Array([this.maxDrawCount]),
             });
             return {
                 rewrite: true,

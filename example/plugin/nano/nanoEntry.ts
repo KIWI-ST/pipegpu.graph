@@ -137,7 +137,10 @@ const nanoEntry = async (
 
     // 
     const earthScene: EarthScene = new EarthScene(
-        `http://127.0.0.1/output/BistroExterior/`,
+        `http://127.0.0.1/EmeraldSquare_Day/`,
+        // `http://127.0.0.1/BistroExterior/`,
+        // `http://127.0.0.1/SunTemple/`,
+        // `http://127.0.0.1/output/BistroExterior/`,
         // `http://127.0.0.1/output/Azalea_LowPoly/`,
         SCENE_CAMERA,
         viewportWidth,
@@ -199,8 +202,8 @@ const nanoEntry = async (
         depthStencilAttachment: depthStencilAttachment,
         uniforms: new Uniforms(),
         primitiveDesc: {
-            primitiveTopology: 'triangle-list',
-            cullFormat: 'backCW'
+            primitiveTopology: 'point-list',
+            // cullFormat: 'backCW'
         }
     };
 
@@ -221,39 +224,16 @@ const nanoEntry = async (
     {
         // earthScene.forceUpdateSceneManager();
         const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
-        const graph: OrderedGraph = new OrderedGraph(context);
-        let seed = 0;
+        // const graph: OrderedGraph = new OrderedGraph(context);
+        // let seed = 0;
         const renderLoop = async () => {
-            //
             earthScene.updateSceneData();
-
             context.refreshFrameResource();
             const encoder = context.getCommandEncoder();
             holder.build(encoder);
             context.submitFrameResource();
 
-            // if (180 == seed) {
-            //     const pulled = await debugBuffer.PullDataAsync(0, 16 * 4);
-            //     const f32Array = new Float32Array(pulled as ArrayBuffer);
-            //     console.log(`------------------------------------------------------------------------------------------------------------------------`);
-            //     console.log(`debug info:`);
-            //     for (let k = 0; k < 4; k++) {
-            //         const index = k * 4;
-            //         console.log(`(${f32Array[index]}, ${f32Array[index + 1]}, ${f32Array[index + 2]}, ${f32Array[index + 3]})`);
-            //     }
-            // }
-
-            // seed++;
-
             requestAnimationFrame(renderLoop);
-            // earth scene update
-            // earthScene.refreshBuffer();
-            // earthScene.updateSceneData();
-            // earthScene.printDebugInfo();
-            // gpu render
-            // graph.append(holder);
-            // graph.build();
-            // loop
         };
         requestAnimationFrame(renderLoop);
     }
