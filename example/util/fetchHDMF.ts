@@ -433,7 +433,6 @@ const fetchHDMF = async (uri: string, key: string = ""): Promise<MeshDataPack> =
             throw new Error(`[E][fetchHDMF] missing support type. please check .hdmf materials.`);
     }
 
-
     // (meshDataPack.material as MaterialPBR).
     return meshDataPack;
 }

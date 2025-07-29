@@ -86,7 +86,7 @@ const nanoEntry = async (
         width: viewportWidth,
         height: viewportHeight,
         devicePixelRatio: devicePixelRatio,
-        requestFeatures: ['chromium-experimental-multi-draw-indirect']
+        requestFeatures: ['chromium-experimental-multi-draw-indirect', 'indirect-first-instance']
     });
 
     await context.init();
@@ -137,11 +137,11 @@ const nanoEntry = async (
 
     // 
     const earthScene: EarthScene = new EarthScene(
-        `http://10.11.11.34/BistroExterior/`,
+        // `http://127.0.0.1/EmeraldSquare_Day/`,
         // `http://127.0.0.1/BistroExterior/`,
         // `http://127.0.0.1/SunTemple/`,
-        // `http://127.0.0.1/output/BistroExterior/`,
-        // `http://127.0.0.1/output/Azalea_LowPoly/`,
+        // `http://10.11.20.212/output/BistroExterior/`,
+        `http://10.11.11.34/BistroExterior/`,
         SCENE_CAMERA,
         viewportWidth,
         viewportHeight,
@@ -202,8 +202,8 @@ const nanoEntry = async (
         depthStencilAttachment: depthStencilAttachment,
         uniforms: new Uniforms(),
         primitiveDesc: {
-            primitiveTopology: 'point-list',
-            // cullFormat: 'backCW'
+            primitiveTopology: 'triangle-list',
+            cullFormat: 'backCW'
         }
     };
 
