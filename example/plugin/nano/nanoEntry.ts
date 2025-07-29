@@ -137,7 +137,7 @@ const nanoEntry = async (
 
     // 
     const earthScene: EarthScene = new EarthScene(
-        `http://127.0.0.1/EmeraldSquare_Day/`,
+        `http://10.11.11.34/BistroExterior/`,
         // `http://127.0.0.1/BistroExterior/`,
         // `http://127.0.0.1/SunTemple/`,
         // `http://127.0.0.1/output/BistroExterior/`,

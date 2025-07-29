@@ -52,8 +52,141 @@ const cesiumEntry = async () => {
 
     // console.log(r);
 
+
+
     SCENE_CAMERA = viewer.scene.camera;
     SCENE_CAMERA.setView({ destination: lnglat });
+
+    const imgLayer = new Cesium.UrlTemplateImageryProvider({
+        url:
+          "https://webst02.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}",
+        minimumLevel: 3,
+        maximumLevel: 18,
+      });
+      viewer.imageryLayers.addImageryProvider(imgLayer);
+
+
+
+    // 方法一：断言 scene 为 any 类型
+    const context = (viewer.scene as any).context;
+
+    // 使用类型断言创建纹理
+  
+    let primitive  , postProcess;
+
+    let canvas = document.getElementById("GeoSketchpadConainter")  as HTMLCanvasElement;
+    //   viewer.scene.preUpdate.addEventListener(function () {
+    //     primitive.appearance.material.uniforms.image = canvas
+    //   });
+
+ 
+      let targetCanvas  = document.getElementById("myCanvas") as HTMLCanvasElement;
+      let targetCtx = targetCanvas.getContext('2d'); // 获取 2D 上下文
+        if (targetCtx ) {
+            var grad = targetCtx.createRadialGradient(200, 200, 50, 260, 260, 200) // 创建一个渐变色径向/圆对象
+            grad.addColorStop(0, "rgba(240,250,40,1)"); // 设置渐变颜色
+            grad.addColorStop(0.25, "rgba(327,201,64,1)");
+            grad.addColorStop(0.5, "rgba(22,184,200,1)");
+            grad.addColorStop(1, "rgba(82,67,192,1)");
+            targetCtx.fillStyle = grad; // 设置fillStyle为当前的渐变对象
+            targetCtx.fillRect(0, 0, 500, 500); // 绘制渐变图形
+      }
+      
+
+       // 复制函数
+    function copyCanvas() {
+        let targetCanvas2  = document.getElementById("myCanvas2") as HTMLCanvasElement;
+        let targetCtx2 = targetCanvas2.getContext('2d'); // 获取 2D 上下文
+        if(targetCtx2){
+           
+            // targetCtx2.clearRect(0, 0, targetCanvas.width, targetCanvas.height);                  
+            // targetCtx2.drawImage(
+            //     targetCanvas, 0, 0, 
+            //     targetCanvas.width, targetCanvas.height,
+            //     0, 0, 
+            //     targetCanvas.width, targetCanvas.height
+            // );
+
+            targetCtx2.clearRect(0, 0, canvas.width, canvas.height);                  
+            targetCtx2.drawImage(
+                canvas, 0, 0, 
+                canvas.width, canvas.height,
+                0, 0, 
+                canvas.width, canvas.height
+            );
+        }
+      }
+  
+    
+ 
+
+
+      const instance = new Cesium.GeometryInstance({
+        geometry: new Cesium.RectangleGeometry({
+          rectangle: Cesium.Rectangle.fromDegrees(115.20, 39.28,117.30, 41.05),
+        }),
+      });
+
+      primitive = viewer.scene.primitives.add(
+        new Cesium.Primitive({
+          geometryInstances: instance,
+          appearance: new Cesium.MaterialAppearance({
+            material: new Cesium.Material({
+              fabric: {
+                type: "Image",
+                uniforms: {
+               // image: "http://10.11.11.32:1121/Examples/fluidCustomwame/view.png",
+                   image:canvas
+                },
+              },
+            }),
+          }),
+        })
+      );
+
+    
+      const texture = new (Cesium as any).Texture({
+        context: context,
+        source: canvas,
+    });
+
+const fragmentShaderSource = `
+  uniform sampler2D colorTexture; 
+  uniform sampler2D depthTexture; 
+  uniform sampler2D textureWebgpuColor; 
+  in vec2 v_textureCoordinates; 
+ 
+  void main(void) 
+  { 
+      vec4 webgpuColor = texture(textureWebgpuColor, v_textureCoordinates);
+      out_FragColor = texture(colorTexture, v_textureCoordinates) + webgpuColor ; 
+
+      }
+  `;
+  postProcess = viewer.scene.postProcessStages.add(
+  new Cesium.PostProcessStage({
+    fragmentShader: fragmentShaderSource,
+    uniforms:{
+        textureWebgpuColor : "http://10.11.11.32:1121/Examples/fluidCustomwame/view.png"
+    }
+  })
+);
+
+
+viewer.scene.postUpdate.addEventListener(function () {
+    
+    //copyCanvas()
+ 
+    (document.getElementById("imgId") as HTMLImageElement).src = canvas.toDataURL("image/png");
+    
+
+    primitive.appearance.material.uniforms.image = canvas.toDataURL("image/png")
+
+    postProcess.uniforms.textureWebgpuColor = canvas.toDataURL("image/png")
+  });
+
+
+
 }
 
 export {

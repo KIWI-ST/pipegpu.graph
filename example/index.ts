@@ -16,6 +16,7 @@ import { Ellipsoid, PSEUDOMERCATOR } from './plugin/nano/earth/Ellipsoid';
     {
         await cesiumEntry();
         await nanoEntry(SCENE_CAMERA);
+       
         // await nanoEntry3();
     }
 
