@@ -473,7 +473,6 @@ class EarthScene {
                 byteLength: 4,
                 offset: 0,
                 rawData: new Uint32Array([this.maxDrawCount]),
-                // rawData: new Uint32Array([this.maxDrawCount]),
             });
             return {
                 rewrite: true,
@@ -513,7 +512,7 @@ class EarthScene {
         // mesh 未添加则对应的 meshlet 也未添加
         // 添加 mesh desc 和 meshlet desc
         if (!this.meshDescRuntimeMap.has(meshDataPack.meshId)) {
-            const meshDescRuntimeID: number = this.meshDescCursor;
+            const meshDescRuntimeID: number = this.meshDescCursor++;
             this.meshDescRuntimeMap.set(meshDataPack.meshId, {
                 runtimeID: meshDescRuntimeID
             });
@@ -530,7 +529,7 @@ class EarthScene {
             const ddibs: DrawIndexedIndirect[] = [];
             let firstIndex: number = 0;
             meshDataPack.meshlets.forEach(meshlet => {
-                const meshletRuntimeID = this.meshletDescCursor;
+                const meshletRuntimeID = this.meshletDescCursor++;
                 const meshletDesc: MeshletDesc = {
                     self_bounding_sphere: new Vec4().set(
                         meshlet.selfParentBounds[0],
@@ -566,12 +565,11 @@ class EarthScene {
             });
             this.runtimeMeshIDWithIndexedIndirectsMap.set(meshDescRuntimeID, ddibs);
             this.indexSizeOffset += this.statsMeshletIndicesNum(meshDataPack);
-            this.vertexSizeOffset += meshDataPack.vertices.length;
-            this.meshDescCursor++; // 处理 mesh 偏移
+            this.vertexSizeOffset += meshDataPack.vertices.length / 8; // BUG FIX!!!, vertex consist of 8 egient
         }
         // instance 
         if (!this.instanceDescRuntimeMap.has(instance.id)) {
-            const instanceRuntimeID = this.instanceDescCursor;
+            const instanceRuntimeID = this.instanceDescCursor++;
             this.instanceDescRuntimeMap.set(instance.id, {
                 runtimeID: instanceRuntimeID
             });
@@ -591,7 +589,11 @@ class EarthScene {
             const diibs: DrawIndexedIndirect[] = this.runtimeMeshIDWithIndexedIndirectsMap.get(meshRuntimeID) as DrawIndexedIndirect[];
             diibs.forEach(diib => {
                 const diibData = new Uint32Array([
-                    diib.index_count, diib.instance_count, diib.first_index, diib.vertex_offset, instanceRuntimeID
+                    diib.index_count,
+                    diib.instance_count,
+                    diib.first_index,
+                    diib.vertex_offset,
+                    instanceRuntimeID
                 ]);
                 this.indexedIndirectQueue.push(diibData);
                 // 一个 meshlet 对应一个 indexed indirect draw command.
@@ -599,7 +601,6 @@ class EarthScene {
                 this.maxDrawCount++;
             });
             this.instanceOrderQueue.push(new Uint32Array([instanceRuntimeID]));
-            this.instanceDescCursor++;  // 处理 instance 偏移
         }
     }
 
