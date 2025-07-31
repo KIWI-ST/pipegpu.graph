@@ -47,30 +47,7 @@ import type { IndexedIndirectBuffer } from 'pipegpu/src/res/buffer/IndexedIndire
 import type { Handle1D, Handle2D } from 'pipegpu/src/res/buffer/BaseBuffer';
 import { parseRenderDispatch } from 'pipegpu/src/compile/parseRenderDispatch';
 import { EarthScene } from './EarthScene';
-
-type InstanceDesc = {
-    model: Mat4,
-    mesh_id: number,
-};
-
-type MeshDesc = {
-    bounding_sphere: BoundingSphere,
-    vertex_offset: number,
-    mesh_id: number,
-    meshlet_count: number,
-    material_id: number,
-};
-
-type MeshletDesc = {
-    self_bounding_sphere: Vec4,
-    parent_bounding_sphere: Vec4,
-    self_error: number,
-    parent_error: number,
-    cluster_id: number,
-    mesh_id: number,
-    index_count: number,
-    index_offset: number,
-};
+import { initMeshletVisComponent } from './component/meshletVisComponent';
 
 const nanoEntry = async (
     SCENE_CAMERA: Cesium.Camera
@@ -98,7 +75,8 @@ const nanoEntry = async (
         canvas.style.position = `fixed`;
     }
 
-    // color attachment
+    // 颜色纹理，连接surface texture
+    // 颜色附件
     const surfaceTexture = compiler.createSurfaceTexture2D();
     const surfaceColorAttachment = compiler.createColorAttachment({
         texture: surfaceTexture,
@@ -109,13 +87,13 @@ const nanoEntry = async (
 
     const colorAttachments: ColorAttachment[] = [surfaceColorAttachment];
 
+    // 深度纹理
     // 深度附件
     const depthTexture = compiler.createTexture2D({
         width: context.getViewportWidth(),
         height: context.getViewportHeight(),
         textureFormat: context.getPreferredDepthTexuteFormat(),
     });
-
     const depthStencilAttachment = compiler.createDepthStencilAttachment({
         texture: depthTexture,
         depthCompareFunction: 'less-equal',
@@ -137,11 +115,10 @@ const nanoEntry = async (
 
     // 
     const earthScene: EarthScene = new EarthScene(
-        // `http://127.0.0.1/EmeraldSquare_Day/`,
-        // `http://127.0.0.1/BistroExterior/`,
-        // `http://127.0.0.1/SunTemple/`,
-        // `http://10.11.20.212/output/BistroExterior/`,
-        `http://10.11.11.34/BistroExterior/`,
+        // `http://10.11.11.34/BistroInterior/`,
+        // `http://10.11.11.34/BistroExterior/`,
+        // `http://10.11.11.34/SunTemple/`,
+        `http://10.11.11.34/BistroInterior_Wine/`,
         SCENE_CAMERA,
         viewportWidth,
         viewportHeight,
@@ -155,14 +132,6 @@ const nanoEntry = async (
     );
 
     //
-    const dispatch: RenderProperty = new RenderProperty(
-        earthScene.IndexedStoragebuffer,
-        earthScene.IndexedIndirectBuffer,
-        earthScene.IndirectDrawCountBuffer,
-        () => { return earthScene.MaxDrawCount; }
-    );
-
-    //
     const fragmentSnippet: FragmentDescSnippet = new FragmentDescSnippet(compiler);
     const vertexSnippet: VertexSnippet = new VertexSnippet(compiler);
     const instanceDescSnippet: InstanceDescSnippet = new InstanceDescSnippet(compiler);
@@ -172,67 +141,34 @@ const nanoEntry = async (
     const indexedStorageSnippet: IndexedStorageSnippet = new IndexedStorageSnippet(compiler);
     const instanceOrderSnippet: StorageArrayU32Snippet = new StorageArrayU32Snippet(compiler);
 
-    const meshletVisComponent: MeshletVisComponent = new MeshletVisComponent(
-        context,
-        compiler,
-        fragmentSnippet,
-        vertexSnippet,
-        instanceDescSnippet,
-        viewProjectionSnippet,
-        viewSnippet,
-        meshDescSnippet,
-        indexedStorageSnippet,
-        instanceOrderSnippet
-    );
-
-    const WGSLCode = meshletVisComponent.build();
-
-    const desc: RenderHolderDesc = {
-        label: 'meshlet vis component',
-        vertexShader: compiler.createVertexShader({
-            code: WGSLCode,
-            entryPoint: `vs_main`,
-        }),
-        fragmentShader: compiler.createFragmentShader({
-            code: WGSLCode,
-            entryPoint: `fs_main`,
-        }),
-        dispatch: dispatch,
-        colorAttachments: colorAttachments,
-        depthStencilAttachment: depthStencilAttachment,
-        uniforms: new Uniforms(),
-        primitiveDesc: {
-            primitiveTopology: 'triangle-list',
-            cullFormat: 'backCW'
-        }
-    };
-
-    {
-        desc.uniforms?.assign(vertexSnippet.getVariableName(), earthScene.VertexBuffer);
-        desc.uniforms?.assign(instanceDescSnippet.getVariableName(), earthScene.InstanceDescBuffer);
-        desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), earthScene.ViewProjectionBuffer);
-        desc.uniforms?.assign(meshDescSnippet.getVariableName(), earthScene.MeshDescBuffer);
-        desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), earthScene.InstanceOrderBuffer);
-    }
-
-    // 场景 scene 管理，初始化计算
-    {
-        earthScene.forceUpdateSceneManager();
-    }
-
     // raf
     {
         // earthScene.forceUpdateSceneManager();
-        const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
+        const holder: RenderHolder | undefined = initMeshletVisComponent(
+            context,
+            compiler,
+            earthScene,
+            colorAttachments,
+            depthStencilAttachment,
+            {
+                fragmentSnippet: fragmentSnippet,
+                vertexSnippet: vertexSnippet,
+                instanceDescSnippet: instanceDescSnippet,
+                viewProjectionSnippet: viewProjectionSnippet,
+                viewSnippet: viewSnippet,
+                meshDescSnippet: meshDescSnippet,
+                indexedStorageSnippet: indexedStorageSnippet,
+                instanceOrderSnippet: instanceOrderSnippet
+            }
+        );
         // const graph: OrderedGraph = new OrderedGraph(context);
         // let seed = 0;
         const renderLoop = async () => {
             earthScene.updateSceneData();
             context.refreshFrameResource();
             const encoder = context.getCommandEncoder();
-            holder.build(encoder);
+            holder?.build(encoder);
             context.submitFrameResource();
-
             requestAnimationFrame(renderLoop);
         };
         requestAnimationFrame(renderLoop);

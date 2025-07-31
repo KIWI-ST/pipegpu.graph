@@ -111,7 +111,7 @@ abstract class BaseSnippet {
      * @param bindingIndex 
      * @param shaderCodeFormat 
      */
-    abstract initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode;
+    abstract initShaderCode(_groupIndex: number, _bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode;
 
     /**
      * 
