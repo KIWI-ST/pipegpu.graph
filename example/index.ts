@@ -1,7 +1,7 @@
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from './util/fetchKTX';
 import { fetchHDMF, type MeshDataPack } from './util/fetchHDMF';
 import { nanoEntry } from './plugin/nano/nanoEntry';
-import { cesiumEntry, SCENE_CAMERA } from './plugin/cesium/CesiumEntry';
+import { cesiumEntry, SCENE_CAMERA } from './plugin/cesium/cesiumEntry';
 import { GeodeticCoordinate } from './plugin/nano/earth/GeodeticCoordinate';
 import { Ellipsoid, PSEUDOMERCATOR } from './plugin/nano/earth/Ellipsoid';
 

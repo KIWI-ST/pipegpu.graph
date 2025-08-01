@@ -47,7 +47,7 @@ import type { IndexedIndirectBuffer } from 'pipegpu/src/res/buffer/IndexedIndire
 import type { Handle1D, Handle2D } from 'pipegpu/src/res/buffer/BaseBuffer';
 import { parseRenderDispatch } from 'pipegpu/src/compile/parseRenderDispatch';
 import { EarthScene } from './EarthScene';
-import { initMeshletVisComponent } from './component/meshletVisComponent';
+import { initMeshletVisShader } from './shader/meshletVisShader';
 
 const nanoEntry = async (
     SCENE_CAMERA: Cesium.Camera
@@ -144,7 +144,7 @@ const nanoEntry = async (
     // raf
     {
         // earthScene.forceUpdateSceneManager();
-        const holder: RenderHolder | undefined = initMeshletVisComponent(
+        const holder: RenderHolder | undefined = initMeshletVisShader(
             context,
             compiler,
             earthScene,

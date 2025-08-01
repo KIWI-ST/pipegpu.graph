@@ -1,7 +1,7 @@
 import { Attributes, ColorAttachment, DepthStencilAttachment, RenderHolder, RenderProperty, Uniforms, type Compiler, type Context, type RenderHolderDesc } from "pipegpu"
 import { DepthClearComponent } from "../../../../shaderGraph/component/DepthClearComponent"
 
-const initDepthClearComponent = (
+const initDepthClearShader = (
     context: Context,
     compiler: Compiler,
     colorAttachments: ColorAttachment[],
@@ -43,5 +43,5 @@ const initDepthClearComponent = (
 }
 
 export {
-    initDepthClearComponent
+    initDepthClearShader
 }

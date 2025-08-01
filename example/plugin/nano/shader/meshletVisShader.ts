@@ -10,7 +10,7 @@ import type { MeshDescSnippet } from "../../../../shaderGraph/snippet/MeshDescSn
 import type { IndexedStorageSnippet } from "../../../../shaderGraph/snippet/IndexedStorageSnippet";
 import type { StorageArrayU32Snippet } from "../../../../shaderGraph/snippet/StorageArrayU32Snippet";
 
-const initMeshletVisComponent = (
+const initMeshletVisShader = (
     context: Context,
     compiler: Compiler,
     earthScene: EarthScene,
@@ -84,5 +84,5 @@ const initMeshletVisComponent = (
 }
 
 export {
-    initMeshletVisComponent
+    initMeshletVisShader
 }
