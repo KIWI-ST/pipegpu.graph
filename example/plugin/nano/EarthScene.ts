@@ -7,7 +7,7 @@ import { fetchJSON, type Instance, type InstanceDataPack } from "../../util/fetc
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from "../../util/fetchKTX";
 import { webMercatorTileSchema } from "./earth/QuadtreeTileSchema";
 import { WGS84 } from "./earth/Ellipsoid";
-import type { Compiler, Context, IndexedIndirectBuffer, StorageBuffer, UniformBuffer, UniformHandle } from "pipegpu";
+import type { Compiler, Context, IndexedIndirectBuffer, StorageBuffer, UniformBuffer } from "pipegpu";
 import type { IndexedStorageBuffer } from "pipegpu/src/res/buffer/IndexedStorageBuffer";
 import type { Handle1D, Handle2D, HandleDetail } from "pipegpu/src/res/buffer/BaseBuffer";
 

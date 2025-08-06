@@ -19,7 +19,7 @@ import { VertexSnippet } from '../../../shaderGraph/snippet/VertexSnippet';
 import { FragmentDescSnippet } from '../../../shaderGraph/snippet/FragmentDescSnippet';
 import { ViewProjectionSnippet } from '../../../shaderGraph/snippet/ViewProjectionSnippet';
 import { MeshDescSnippet } from '../../../shaderGraph/snippet/MeshDescSnippet';
-import { MaterialSnippet } from '../../../shaderGraph/snippet/MaterialSnippet';
+import { MaterialDescSnippet } from '../../../shaderGraph/snippet/MaterialDescSnippet';
 import { Texture2DArraySnippet } from '../../../shaderGraph/snippet/Texture2DArraySnippet';
 import { InstanceDescSnippet } from '../../../shaderGraph/snippet/InstanceDescSnippet';
 import { StorageArrayU32Snippet } from '../../../shaderGraph/snippet/StorageArrayU32Snippet';

@@ -1,7 +1,7 @@
 import { ComputeHolder, ComputeProperty, Texture2D, TextureStorage2D, Uniforms, type Compiler, type ComputeHolderDesc, type Context } from "pipegpu"
 import { DepthCopyComponent } from "../../../../shaderGraph/component/DepthCopyComponent";
 import type { DepthTextureSnippet } from "../../../../shaderGraph/snippet/DepthTextureSnippet";
-import type { TextureStorage2DSnippet } from "../../../../shaderGraph/snippet/TextureStorage2DSnippet";
+import type { TextureStorage2DR32FSnippet } from "../../../../shaderGraph/snippet/TextureStorage2DR32FSnippet";
 
 /**
  * 
@@ -23,7 +23,7 @@ const initDepthCopyShader = (
     hzbTextureStorage: TextureStorage2D,
     destinationDepthTexture: Texture2D,
     depthTextureSnippet: DepthTextureSnippet,
-    hzbTextureStorageSnippet: TextureStorage2DSnippet,
+    hzbTextureStorageSnippet: TextureStorage2DR32FSnippet,
 
 ) => {
 

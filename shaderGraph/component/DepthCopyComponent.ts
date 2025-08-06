@@ -1,7 +1,7 @@
 import type { Compiler, Context } from "pipegpu";
 import { ComputeComponent } from "../ComputerComponen";
 import type { DepthTextureSnippet } from "../snippet/DepthTextureSnippet";
-import type { TextureStorage2DSnippet } from "../snippet/TextureStorage2DSnippet";
+import type { TextureStorage2DR32FSnippet } from "../snippet/TextureStorage2DR32FSnippet";
 
 /**
  * 
@@ -10,13 +10,13 @@ class DepthCopyComponent extends ComputeComponent {
 
     private depthTextureSnippet: DepthTextureSnippet;
 
-    private textureStorage2DSnippet: TextureStorage2DSnippet;
+    private textureStorage2DSnippet: TextureStorage2DR32FSnippet;
 
     constructor(
         context: Context,
         compiler: Compiler,
         depthTextureSnippet: DepthTextureSnippet,
-        textureStorage2DSnippet: TextureStorage2DSnippet
+        textureStorage2DSnippet: TextureStorage2DR32FSnippet
     ) {
         super(context, compiler);
 

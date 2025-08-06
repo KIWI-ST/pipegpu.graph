@@ -1,6 +1,6 @@
 import { ComputeProperty, Uniforms, type Compiler, type ComputeHolder, type ComputeHolderDesc, type Context, type Texture2D, type TextureStorage2D } from "pipegpu";
 import type { Texture2DSnippet } from "../../../../shaderGraph/snippet/Texture2DSnippet";
-import type { TextureStorage2DSnippet } from "../../../../shaderGraph/snippet/TextureStorage2DSnippet";
+import type { TextureStorage2DR32FSnippet } from "../../../../shaderGraph/snippet/TextureStorage2DR32FSnippet";
 import { DownsamplingComponent } from "../../../../shaderGraph/component/DownSamplingComponent";
 
 const downsamplingShader = (
@@ -8,7 +8,7 @@ const downsamplingShader = (
     compiler: Compiler,
     hzbTextureSnippet: Texture2DSnippet,
     hzbTexture: Texture2D,
-    hzbTextureStorage2DSnippet: TextureStorage2DSnippet,
+    hzbTextureStorage2DSnippet: TextureStorage2DR32FSnippet,
     hzbTextureStorage2D: TextureStorage2D,
 ) => {
     const WIDTH = hzbTexture.Width;

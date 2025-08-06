@@ -6,7 +6,7 @@ import type { ViewProjectionSnippet } from "../snippet/ViewProjectionSnippet";
 import type { ViewSnippet } from "../snippet/ViewSnippet";
 import type { InstanceDescSnippet } from "../snippet/InstanceDescSnippet";
 import type { MeshDescSnippet } from "../snippet/MeshDescSnippet";
-import type { MaterialSnippet } from "../snippet/MaterialSnippet";
+import type { MaterialDescSnippet } from "../snippet/MaterialDescSnippet";
 import type { StorageArrayU32Snippet } from "../snippet/StorageArrayU32Snippet";
 import type { IndexedStorageSnippet } from "../snippet/IndexedStorageSnippet";
 import type { PointLightSnippet } from "../snippet/PointLightSnippet";
@@ -26,7 +26,7 @@ class DebugMeshComponent extends RenderComponent {
     private viewSnippet: ViewSnippet;
     private instanceDescSnippet: InstanceDescSnippet;
     private meshDescSnippet: MeshDescSnippet;
-    private materialPhongSnippet: MaterialSnippet;
+    private materialPhongSnippet: MaterialDescSnippet;
     private instanceOrderSnippet: StorageArrayU32Snippet;
     private pointLightSnippet: PointLightSnippet;
     private materialTexture2DArraySnippet: Texture2DArraySnippet;
@@ -42,7 +42,7 @@ class DebugMeshComponent extends RenderComponent {
         viewSnippet: ViewSnippet,
         instanceDescSnippet: InstanceDescSnippet,
         meshDescSnippet: MeshDescSnippet,
-        materialPhongSnippet: MaterialSnippet,
+        materialPhongSnippet: MaterialDescSnippet,
         instanceOrderSnippet: StorageArrayU32Snippet,
         pointLightSnippet: PointLightSnippet,
         materialTexture2DArraySnippet: Texture2DArraySnippet,
