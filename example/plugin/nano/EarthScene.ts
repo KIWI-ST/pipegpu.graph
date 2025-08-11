@@ -136,15 +136,19 @@ class EarthScene {
 
     private initViewPorjectionBuffer = () => {
         const handler: Handle1D = () => {
-            // cesium 默认是列主序，需转换成行主序交给 webgpu
+            // cesium 默认是列主序
             let projectionData: number[] = [];
-            let projectionMatrix = new Cesium.Matrix4();
-            let viewMatrix = new Cesium.Matrix4();
-            Cesium.Matrix4.transpose(this.syncCamera.frustum.projectionMatrix, projectionMatrix);
-            Cesium.Matrix4.toArray(projectionMatrix, projectionData);
+            // let projectionMatrix = new Cesium.Matrix4();
+            // Cesium.Matrix4.transpose(this.syncCamera.frustum.projectionMatrix, projectionMatrix);
+            // Cesium.Matrix4.toArray(projectionMatrix, projectionData);
+            Cesium.Matrix4.toArray(this.syncCamera.frustum.projectionMatrix, projectionData);
+
             let viewData: number[] = [];
-            Cesium.Matrix4.transpose(this.syncCamera.viewMatrix, viewMatrix);
-            Cesium.Matrix4.toArray(viewMatrix, viewData);
+            // let viewMatrix = new Cesium.Matrix4();
+            // Cesium.Matrix4.transpose(this.syncCamera.viewMatrix, viewMatrix);
+            // Cesium.Matrix4.toArray(viewMatrix, viewData);
+            Cesium.Matrix4.toArray(this.syncCamera.viewMatrix, viewData);
+
             const rawDataArr = [...projectionData, ...viewData];
             const rawDataF32 = new Float32Array(rawDataArr);
             return {
@@ -237,36 +241,22 @@ class EarthScene {
                 const details: HandleDetail[] = [];
                 let instanceDesc: InstanceDesc | undefined = this.instanceDescQueue.shift();
                 while (instanceDesc) {
-                    const buffer = new ArrayBuffer(144);
-                    const geoModelView = new Float32Array(buffer, 0, 16);
-                    const modelView = new Float32Array(buffer, 64, 16);
-                    const meshIDView = new Uint32Array(buffer, 128, 1);
-                    // let instanceMatrix = Cesium.Matrix4.fromArray(instanceDesc.model.value);
-                    // let instanceMatrixTranspose = new Cesium.Matrix4();
-                    // Cesium.Matrix4.transpose(instanceMatrix, instanceMatrixTranspose);
-                    // const instanceMatrix = Cesium.Matrix4.IDENTITY;
-                    const instanceMatrix = Cesium.Matrix4.fromArray(instanceDesc.model.value);
-                    let instanceMatrixData: number[] = [];
-                    let instanceMatrixT = new Cesium.Matrix4();
-                    Cesium.Matrix4.transpose(instanceMatrix, instanceMatrixT);
-                    let instanceMatrixTData: number[] = [];
+                    const buffer = new ArrayBuffer(80);
+                    const modelMatrixView = new Float32Array(buffer, 0, 16);
+                    const meshIDView = new Uint32Array(buffer, 16 * 4, 1);
 
-                    Cesium.Matrix4.toArray(instanceMatrixT, instanceMatrixTData);
-                    modelView.set(instanceMatrixTData);
+                    let instanceMatrix = Cesium.Matrix4.fromArray(instanceDesc.model.value);
+                    let modelMatrix = new Cesium.Matrix4();
+                    Cesium.Matrix4.multiply(locationMatrix, instanceMatrix, modelMatrix);
 
-                    let locationMatrixT = new Cesium.Matrix4();
-                    let locationMatrixTData: number[] = [];
-                    Cesium.Matrix4.transpose(locationMatrix, locationMatrixT);
-                    Cesium.Matrix4.toArray(locationMatrixT, locationMatrixTData);
-                    // Cesium.Matrix4.multiply(locationMatrix, instanceMatrix, locationInstanceMatrix);
-                    geoModelView.set(locationMatrixTData);
+                    let modelMatrixData: number[] = [];
+                    Cesium.Matrix4.toArray(modelMatrix, modelMatrixData);
 
-                    // let mat4x4Data: number[] = [];
-                    // Cesium.Matrix4.toArray(mat4x4, mat4x4Data);
-                    // f32view.set(mat4x4Data);
+                    modelMatrixView.set(modelMatrixData);
                     meshIDView.set([instanceDesc.mesh_id]);
+
                     details.push({
-                        byteLength: 144,
+                        byteLength: 80,
                         offset: this.sceneInstanceDescBufferOffset,
                         rawData: buffer,
                     });
