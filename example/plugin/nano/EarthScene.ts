@@ -1,6 +1,6 @@
 import * as Cesium from 'cesium';
 
-import { Mat4, Vec4 } from "pipegpu.matrix";
+import { Mat4, Vec4, Vec3 } from "pipegpu.matrix";
 import { fetchHDMF, type BoundingSphere, type MaterialType, type MeshDataPack } from "../../util/fetchHDMF";
 import { EarthManager } from "./EarthManager";
 import { fetchJSON, type Instance, type InstanceDataPack } from "../../util/fetchJSON";
@@ -79,6 +79,8 @@ class EarthScene {
     private indexSizeOffset: number = 0;
 
     private viewProjectionBuffer!: UniformBuffer;                // 视域矩阵 buffer          -- done
+    private viewPlaneBuffer!: UniformBuffer;                     // 视锥边缘面               -- done
+    private viewBuffer!: UniformBuffer;                           // 视角                     -- done
     private vertexBuffer!: StorageBuffer;                        // 密集型顶点 buffer        -- done
     private instanceOrderBuffer!: StorageBuffer;                 // 实例顺序 buffer          -- done
     private instanceDescBuffer!: StorageBuffer;                  // 实例描述 buffer          -- done
@@ -163,6 +165,142 @@ class EarthScene {
         };
         this.viewProjectionBuffer = this.compiler.createUniformBuffer({
             totalByteLength: 128,
+            handler: handler
+        });
+    }
+
+    private initViewPlaneBuffer = () => {
+        const handler: Handle1D = () => {
+            let m = new Cesium.Matrix4();
+            Cesium.Matrix4.multiply(this.syncCamera.frustum.projectionMatrix, this.syncCamera.viewMatrix, m);
+            let mat: number[] = [];
+            Cesium.Matrix4.toArray(m, mat);
+            const planes: number[] = [];
+            // 组织plane六个面
+            const v3: Vec3 = new Vec3();
+            // left
+            {
+                v3.x = -(mat[3] + mat[0]);
+                v3.y = -(mat[7] + mat[4]);
+                v3.z = -(mat[11] + mat[8]);
+                const l: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    -(mat[15] + mat[12]) / v3.len()
+                );
+                planes.push(...l.value);
+            }
+            // right
+            {
+                v3.x = mat[0] - mat[3];
+                v3.y = mat[4] - mat[7];
+                v3.z = mat[8] - mat[11];
+                const r: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    (mat[12] - mat[15]) / v3.len()
+                );
+                planes.push(...r.value);
+            }
+            // top
+            {
+                v3.x = -(mat[3] + mat[1]);
+                v3.y = -(mat[7] + mat[5]);
+                v3.z = -(mat[11] + mat[9]);
+                const t: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    -(mat[15] + mat[13]) / v3.len()
+                );
+                planes.push(...t.value);
+            }
+            // bottom
+            {
+                v3.x = mat[1] - mat[3];
+                v3.y = mat[5] - mat[7];
+                v3.z = mat[9] - mat[11];
+                const b: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    (mat[13] - mat[15]) / v3.len()
+                );
+                planes.push(...b.value);
+            }
+            // near
+            {
+                v3.x = -(mat[2] + mat[3]);
+                v3.y = -(mat[6] + mat[7]);
+                v3.z = -(mat[10] + mat[11]);
+                const n: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    -(mat[14] + mat[15]) / v3.len()
+                );
+                planes.push(...n.value);
+            }
+            // far
+            {
+                v3.x = mat[2] - mat[3];
+                v3.y = mat[6] - mat[7];
+                v3.z = mat[10] - mat[11];
+                const f: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    (mat[14] - mat[15]) / v3.len()
+                );
+                planes.push(...f.value);
+            }
+            const rawDataF32 = new Float32Array(planes);
+            return {
+                rewrite: true,
+                detail: {
+                    offset: 0,
+                    size: 4 * 6,
+                    byteLength: 4 * 4 * 6,
+                    rawData: rawDataF32,
+                }
+            }
+        };
+        this.viewPlaneBuffer = this.compiler.createUniformBuffer({
+            totalByteLength: 4 * 4 * 6,
+            handler: handler
+        });
+    }
+
+    private initViewBuffer = () => {
+        const handler: Handle1D = () => {
+            const frustum = this.syncCamera.frustum as Cesium.PerspectiveFrustum;
+            const verticalScalingFactor = 1.0 / Math.tan(frustum.fov as number);
+            const rawDataF32 = new Float32Array([
+                this.syncCamera.position.x,                 //  camera_position_x
+                this.syncCamera.position.y,                 //  camera_position_y
+                this.syncCamera.position.z,                 //  camera_position_z
+                verticalScalingFactor,                      //  camera_vertical_scaling_factor
+                this.earthManager.getViewportWidth(),       //  viewport_width
+                this.earthManager.getViewportHeight(),      //  viewport_height
+                frustum.near,                               //  near_plane
+                frustum.far,                                //  far_plane
+                0,                                          //  pixel_threshold
+                1.0                                         //  software_rasterizer_threshold
+            ]);
+            return {
+                rewrite: true,
+                detail: {
+                    offset: 0,
+                    size: 10,
+                    byteLength: 48,
+                    rawData: rawDataF32,
+                }
+            }
+        };
+        this.viewBuffer = this.compiler.createUniformBuffer({
+            totalByteLength: 48,
             handler: handler
         });
     }
@@ -478,6 +616,8 @@ class EarthScene {
 
     private initGpuBuffers = () => {
         this.initViewPorjectionBuffer();
+        this.initViewPlaneBuffer();
+        this.initViewBuffer();
         this.initVertexBuffer();
         this.initInstanceOrderBuffer();
         this.initInstanceDescBuffer();
@@ -739,6 +879,14 @@ class EarthScene {
         return this.viewProjectionBuffer;
     }
 
+    public get ViewPlaneBuffer(): UniformBuffer {
+        return this.viewPlaneBuffer;
+    }
+
+    public get ViewBuffer(): UniformBuffer {
+        return this.viewBuffer;
+    }
+
     public get VertexBuffer(): StorageBuffer {
         return this.vertexBuffer;
     }
@@ -774,12 +922,6 @@ class EarthScene {
     public get MaxDrawCount(): number {
         return this.maxDrawCount;
     }
-
-    public printDebugInfo(): void {
-        const limit: number = 10;
-        let step: number = 0;
-    }
-
 }
 
 export {

@@ -1,4 +1,4 @@
-import type { Compiler } from "pipegpu";
+import type { Compiler, Handle1D, StorageBuffer } from "pipegpu";
 import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
 
 /**
@@ -11,6 +11,16 @@ class StorageAtomicU32Snippet extends BaseSnippet {
      */
     constructor(compiler: Compiler) {
         super(compiler, 'storage_atomic_u32_snippet');
+    }
+
+    /**
+     * 
+     */
+    getBuffer = (): StorageBuffer => {
+        return this.compiler.createStorageBuffer({
+            totalByteLength: 4,
+            rawData: [new Uint32Array([0])],
+        })
     }
 
     /**

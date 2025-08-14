@@ -1,19 +1,6 @@
 import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet"
 import { Compiler, MapBuffer } from "pipegpu";
 
-interface IDebug {
-    x: number,
-    y: number,
-    z: number,
-    w: number,
-    u: number,
-    v: number,
-    r: number,
-    g: number,
-    b: number,
-    a: number,
-}
-
 /**
  * DebugSnippet is a shader snippet that defines a structure for debugging data.
  */
@@ -29,10 +16,19 @@ class DebugSnippet extends BaseSnippet {
 
 struct ${this.shaderCode.structName}
 {
-    m0: vec4<f32>,
-    m1: vec4<f32>,
-    m2: vec4<f32>,
-    m3: vec4<f32>,
+    total_instance_count: f32,
+    instance_count: f32,
+    depth: f32,
+    depth1: f32,
+    mip_level: f32,
+    view_port_x: f32,
+    view_port_y: f32,
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+    u: f32,
+    v: f32,
 };
         
         `;
@@ -47,25 +43,11 @@ struct ${this.shaderCode.structName}
     }
 
     public getBuffer(): MapBuffer {
-        const debugData: IDebug = {
-            x: 0,
-            y: 0,
-            z: 0,
-            w: 0,
-            u: 0,
-            v: 0,
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 0
-        };
         const debugDataArray = new Float32Array([
-            debugData.x, debugData.y, debugData.z, debugData.w,
-            debugData.u, debugData.v,
-            debugData.r, debugData.g, debugData.b, debugData.a
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         ]);
         const buffer = this.compiler.createMapBuffer({
-            totalByteLength: 10 * 4,
+            totalByteLength: 13 * 4,
             rawData: [debugDataArray],
         });
         return buffer;
@@ -74,6 +56,5 @@ struct ${this.shaderCode.structName}
 }
 
 export {
-    type IDebug,
     DebugSnippet
 }

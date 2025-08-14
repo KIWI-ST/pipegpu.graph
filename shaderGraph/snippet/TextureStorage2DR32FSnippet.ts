@@ -10,6 +10,18 @@ class TextureStorage2DR32FSnippet extends BaseSnippet {
         super(compiler, 'texture_storage_2d_snippet');
     }
 
+    /**
+     * 
+     */
+    getTexture = (width: number, height: number, mipmapCount: number, textureFormat: GPUTextureFormat) => {
+        return this.compiler.createTextureStorage2D({
+            width: width,
+            height: height,
+            maxMipLevel: mipmapCount,
+            textureFormat: textureFormat
+        });
+    }
+
     override initShaderCode(_groupIndex: number, _bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.requireExtentCode = "requires readonly_and_readwrite_storage_textures;";
         this.shaderCode.structName = `texture_storage_2d`;

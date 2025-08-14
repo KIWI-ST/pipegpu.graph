@@ -1,9 +1,15 @@
+import type { Compiler } from "pipegpu";
 import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
 
 /**
  * 
  */
 class StorageVec2U32Snippet extends BaseSnippet {
+
+    constructor(compiler: Compiler) {
+        super(compiler, 'storage_vec2_u32_snippet');
+    }
+
     /**
      * 
      * @param _groupIndex 
