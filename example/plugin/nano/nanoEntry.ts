@@ -19,7 +19,7 @@ import {
 
 import * as Cesium from 'cesium'
 
-import { DepthTextureSnippet, IndirectSnippet, OrderedGraph, ReuseVisibilityBufferComponent, StorageVec2U32Snippet, Texture2DSnippet, TextureStorage2DR32FSnippet, ViewPlaneSnippet, VisibilityBufferSnippet } from '../../../index'
+import { DepthClearComponent, DepthTextureSnippet, IndirectSnippet, OrderedGraph, ReuseVisibilityBufferComponent, StorageVec2U32Snippet, Texture2DSnippet, TextureStorage2DR32FSnippet, ViewPlaneSnippet, VisibilityBufferSnippet } from '../../../index'
 import { VertexSnippet } from '../../../shaderGraph/snippet/VertexSnippet';
 import { FragmentDescSnippet } from '../../../shaderGraph/snippet/FragmentDescSnippet';
 import { ViewProjectionSnippet } from '../../../shaderGraph/snippet/ViewProjectionSnippet';
@@ -91,33 +91,19 @@ const nanoEntry = async (
 
     // 深度纹理
     // 深度附件
-    let depthStencilAttachment: DepthStencilAttachment;
-    {
-        const depthTexture = compiler.createTexture2D({
-            width: context.getViewportWidth(),
-            height: context.getViewportHeight(),
-            textureFormat: context.getPreferredDepthTexuteFormat(),
-        });
-        depthStencilAttachment = compiler.createDepthStencilAttachment({
-            texture: depthTexture,
-            depthCompareFunction: 'less-equal',
-            depthLoadStoreFormat: 'clearStore',
-        });
-    }
-    const MAX_MIPMAP_COUNT = depthStencilAttachment.getTexture().MaxMipmapCount;
 
-    // 调试缓冲
-    // const debugBuffer: MapBuffer = compiler.createMapBuffer({
-    //     totalByteLength: 16 * 4,
-    //     rawData: [
-    //         new Float32Array([
-    //             0, 0, 0, 0,
-    //             0, 0, 0, 0,
-    //             0, 0, 0, 0,
-    //             0, 0, 0, 0,
-    //         ])
-    //     ],
-    // });
+    const depthTexture = compiler.createTexture2D({
+        width: context.getViewportWidth(),
+        height: context.getViewportHeight(),
+        textureFormat: context.getPreferredDepthTexuteFormat(),
+    });
+    const depthStencilAttachment = compiler.createDepthStencilAttachment({
+        texture: depthTexture,
+        depthCompareFunction: 'less-equal',
+        depthLoadStoreFormat: 'clearStore',
+    });
+
+    const MAX_MIPMAP_COUNT = depthStencilAttachment.getTexture().MaxMipmapCount;
 
     // 
     const earthScene: EarthScene = new EarthScene(
@@ -161,7 +147,7 @@ const nanoEntry = async (
     const visibilityBufferSnippet: VisibilityBufferSnippet = new VisibilityBufferSnippet(compiler);
     const debugIndexedIndirectSnippet: IndexedIndirectSnippet = new IndexedIndirectSnippet(compiler);
     const hardwareRasterizationIndirectSnippet: IndirectSnippet = new IndirectSnippet(compiler);
-    const reuseVisibilityIndirectSnippet: IndirectSnippet = new IndirectSnippet(compiler);
+    const runtimeReuseVisibilityIndirectSnippet: IndirectSnippet = new IndirectSnippet(compiler);
 
     const debugBuffer = debugSnippet.getBuffer();
     const viewProjectionBuffer = earthScene.ViewProjectionBuffer;
@@ -175,7 +161,6 @@ const nanoEntry = async (
     const instanceCountAtomicBuffer = instanceCountAtomicSnippet.getBuffer();
     const meshletCountAtomicBuffer = meshletCountAtomicSnippet.getBuffer();
     const triangleCountAtomicBuffer = triangleCountAtomicSnippet.getBuffer();
-    const depthTexture = depthStencilAttachment.getTexture();
     const hzbTexture = hzbTextureSnippet.getTexture(viewportWidth, viewportHeight, MAX_MIPMAP_COUNT, 'r32float');
     const hzbTextureStorage = hzbTextureStorageSnippet.getTexture(viewportWidth, viewportHeight, MAX_MIPMAP_COUNT, 'r32float');
     const staticIndexedStorageBuffer = earthScene.StaticIndexedStorageBuffer;
@@ -185,7 +170,7 @@ const nanoEntry = async (
     const textureSampler = textureSamplerSnippet.getTextureSampler();
     const meshletMapRuntimeBuffer = runtimeMeshletMapSnippet.getRuntimeBuffer();
     const hardwareRasterizationIndirectBuffer = earthScene.HardwareRasterizationIndirectBuffer; // TODO:: not init
-    const reuseVisibilityIndirectBuffer = reuseVisibilityIndirectSnippet.getBuffer();
+    const runtimeReuseVisibilityIndirectBuffer = runtimeReuseVisibilityIndirectSnippet.getBuffer();
 
     const holders: BaseHolder[] = [];
 
@@ -213,7 +198,7 @@ const nanoEntry = async (
             instanceDescSnippet,
             triangleCountAtomicSnippet,
             runtimeMeshletMapSnippet,
-            reuseVisibilityIndirectSnippet,
+            runtimeReuseVisibilityIndirectSnippet,
         );
 
         const dispatch = new ComputeProperty(
@@ -242,9 +227,39 @@ const nanoEntry = async (
         desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
         desc.uniforms?.assign(triangleCountAtomicSnippet.getVariableName(), triangleCountAtomicBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), meshletMapRuntimeBuffer);
-        desc.uniforms?.assign(reuseVisibilityIndirectSnippet.getVariableName(), reuseVisibilityIndirectBuffer);
+        desc.uniforms?.assign(runtimeReuseVisibilityIndirectSnippet.getVariableName(), runtimeReuseVisibilityIndirectBuffer);
 
         holders.push(compiler.compileComputeHolder(desc));
+    }
+
+    // 2. reset depth. clear depth as default 1.0.
+    {
+        const depthClearComponent: DepthClearComponent = new DepthClearComponent(context, compiler);
+        // 通过 attachment, 指定 depthTexture 初始化的办法
+        // 完成原子化操作
+        const depthClearAttachment = depthClearComponent.createClearDepthStencilAttachment(depthTexture);
+
+        const WGSLCode = depthClearComponent.build();
+        console.log(WGSLCode);
+
+        const dispatch: RenderProperty = new RenderProperty(6, 1);
+
+        const desc: RenderHolderDesc = {
+            label: 'reset depth, clear depth value to 1.0',
+            vertexShader: compiler.createVertexShader({
+                code: WGSLCode,
+                entryPoint: 'vs_main'
+            }),
+            fragmentShader: compiler.createFragmentShader({
+                code: WGSLCode,
+                entryPoint: 'fs_main'
+            }),
+            dispatch: dispatch,
+            colorAttachments: colorAttachments,
+            depthStencilAttachment: undefined
+        };
+
+
     }
 
 

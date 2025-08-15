@@ -1,4 +1,4 @@
-import type { Compiler, Context } from "pipegpu";
+import type { Compiler, Context, Texture2D } from "pipegpu";
 import { RenderComponent } from "../RenderComponen";
 
 class DepthClearComponent extends RenderComponent {
@@ -8,6 +8,20 @@ class DepthClearComponent extends RenderComponent {
         compiler: Compiler
     ) {
         super(context, compiler);
+    }
+
+    /**
+     * 
+     * @param depthTexture 
+     */
+    createClearDepthStencilAttachment = (depthTexture: Texture2D) => {
+        return this.compiler.createDepthStencilAttachment({
+            texture: depthTexture,
+            depthLoadStoreFormat: 'loadStore',
+            depthCompareFunction: 'less-equal',
+            depthReadOnly: false,
+            depthClearValue: 1.0,
+        });
     }
 
     build(): string {
