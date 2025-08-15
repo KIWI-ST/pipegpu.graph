@@ -7,6 +7,13 @@ class IndirectSnippet extends BaseSnippet {
         super(compiler, 'indirect_snippet');
     }
 
+    getBuffer = () => {
+        return this.compiler.createIndirectBuffer({
+            totalByteLength: 20 * 2560 * 1440,
+            rawData: []
+        });
+    }
+
     override initShaderCode(_groupIndex: number, _bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         this.shaderCode.structName = `DRAW_INDIRECT`;
         this.shaderCode.structCode = `

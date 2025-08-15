@@ -11,12 +11,15 @@ import {
     StorageBuffer,
     MapBuffer,
     TextureSampler,
-    DepthStencilAttachment
+    DepthStencilAttachment,
+    BaseHolder,
+    type ComputeHolderDesc,
+    ComputeProperty
 } from 'pipegpu';
 
 import * as Cesium from 'cesium'
 
-import { DepthTextureSnippet, IndirectSnippet, OrderedGraph, StorageVec2U32Snippet, Texture2DSnippet, TextureStorage2DR32FSnippet, ViewPlaneSnippet, VisibilityBufferSnippet } from '../../../index'
+import { DepthTextureSnippet, IndirectSnippet, OrderedGraph, ReuseVisibilityBufferComponent, StorageVec2U32Snippet, Texture2DSnippet, TextureStorage2DR32FSnippet, ViewPlaneSnippet, VisibilityBufferSnippet } from '../../../index'
 import { VertexSnippet } from '../../../shaderGraph/snippet/VertexSnippet';
 import { FragmentDescSnippet } from '../../../shaderGraph/snippet/FragmentDescSnippet';
 import { ViewProjectionSnippet } from '../../../shaderGraph/snippet/ViewProjectionSnippet';
@@ -135,7 +138,6 @@ const nanoEntry = async (
     );
 
     //
-
     const debugSnippet: DebugSnippet = new DebugSnippet(compiler);
     const viewProjectionSnippet: ViewProjectionSnippet = new ViewProjectionSnippet(compiler);
     const viewPlaneSnippet: ViewPlaneSnippet = new ViewPlaneSnippet(compiler);
@@ -146,25 +148,20 @@ const nanoEntry = async (
     const meshletDescSnippet: MeshletDescSnippet = new MeshletDescSnippet(compiler);
     const instanceDescSnippet: InstanceDescSnippet = new InstanceDescSnippet(compiler);
     const instanceOrderSnippet: StorageArrayU32Snippet = new StorageArrayU32Snippet(compiler);
-
     const instanceCountAtomicSnippet: StorageAtomicU32Snippet = new StorageAtomicU32Snippet(compiler);
     const meshletCountAtomicSnippet: StorageAtomicU32Snippet = new StorageAtomicU32Snippet(compiler);
     const triangleCountAtomicSnippet: StorageAtomicU32Snippet = new StorageAtomicU32Snippet(compiler);
-
     const depthTextureSnippet: DepthTextureSnippet = new DepthTextureSnippet(compiler);
     const hzbTextureStorageSnippet: TextureStorage2DR32FSnippet = new TextureStorage2DR32FSnippet(compiler);
     const hzbTextureSnippet: Texture2DSnippet = new Texture2DSnippet(compiler);
     const textureSamplerSnippet: TextureSamplerSnippet = new TextureSamplerSnippet(compiler);
     const staticIndexedStorageSnippet: IndexedStorageSnippet = new IndexedStorageSnippet(compiler);
-    const dynamicIndexedStorageSnippet: IndexedStorageSnippet = new IndexedStorageSnippet(compiler);
-    const runtimeMeshletMapSnippet: StorageVec2U32Snippet = new StorageVec2U32Snippet(compiler);
+    const runtimeIndexedStorageSnippet: IndexedStorageSnippet = new IndexedStorageSnippet(compiler);
+    const runtimeMeshletMapSnippet: StorageVec2U32Snippet = new StorageVec2U32Snippet(compiler);        // 记录运行时 instance ID -> 对应的 meshlet ID
     const visibilityBufferSnippet: VisibilityBufferSnippet = new VisibilityBufferSnippet(compiler);
     const debugIndexedIndirectSnippet: IndexedIndirectSnippet = new IndexedIndirectSnippet(compiler);
     const hardwareRasterizationIndirectSnippet: IndirectSnippet = new IndirectSnippet(compiler);
     const reuseVisibilityIndirectSnippet: IndirectSnippet = new IndirectSnippet(compiler);
-
-
-
 
     const debugBuffer = debugSnippet.getBuffer();
     const viewProjectionBuffer = earthScene.ViewProjectionBuffer;
@@ -181,53 +178,92 @@ const nanoEntry = async (
     const depthTexture = depthStencilAttachment.getTexture();
     const hzbTexture = hzbTextureSnippet.getTexture(viewportWidth, viewportHeight, MAX_MIPMAP_COUNT, 'r32float');
     const hzbTextureStorage = hzbTextureStorageSnippet.getTexture(viewportWidth, viewportHeight, MAX_MIPMAP_COUNT, 'r32float');
+    const staticIndexedStorageBuffer = earthScene.StaticIndexedStorageBuffer;
+    const runtimeIndexedStorageBuffer = earthScene.RuntimeIndexedStorageBuffer;
+    const visibilityBufferTexture = visibilityBufferSnippet.getVisbilityTexture(viewportWidth, viewportHeight);
+    const visibilityColorAttachment = visibilityBufferSnippet.getVisibilityColorAttachment(visibilityBufferTexture);
+    const textureSampler = textureSamplerSnippet.getTextureSampler();
+    const meshletMapRuntimeBuffer = runtimeMeshletMapSnippet.getRuntimeBuffer();
+    const hardwareRasterizationIndirectBuffer = earthScene.HardwareRasterizationIndirectBuffer; // TODO:: not init
+    const reuseVisibilityIndirectBuffer = reuseVisibilityIndirectSnippet.getBuffer();
 
+    const holders: BaseHolder[] = [];
 
-    // const auto static_index_buffer = static_index_snippet->GetBuffer(meshes, total_triangle_count, use_meshlet);
-    // const auto dynamic_index_buffer = dynamic_index_snippet->GetBuffer(meshes, total_triangle_count, use_meshlet);
-    // const auto visibility_buffer_texture = visibility_buffer_snippet->GetTexture(w, h);
-    // const auto visibility_color_attachments = gems::sandbox::RCIHelper::GetInstance().CreateVisbilityColorAttachments(visibility_buffer_texture);
-    // const auto texture_sampler = texture_sampler_snippet->GetTextureSampler();
-    // const auto runtime_meshlet_map_buffer = runtime_meshlet_map_snippet->GetBuffer(meshes);
-    // const auto hardware_rasterization_indirect_buffer = hardware_rasterization_indirect_snippet->GetBuffer(meshes, use_meshlet);
-    // const auto reuse_visibility_indirect_buffer = reuse_visibility_indirect_snippet->GetBuffer(UINT25);
+    // debug
+    let debugHandler;
+    {
+        debugHandler = async () => {
+            const ab: ArrayBuffer = await debugBuffer.PullDataAsync() as ArrayBuffer;
+            const f32 = new Float32Array(ab as ArrayBuffer);
+            console.log(f32);
+        }
+    }
 
+    // 1. 基于可见性缓冲生成 index buffer 和 indirect buffer （重投影过程）
+    {
+        const reuseVisibilityBufferComponent: ReuseVisibilityBufferComponent = new ReuseVisibilityBufferComponent(
+            context,
+            compiler,
+            debugSnippet,
+            visibilityBufferSnippet,
+            staticIndexedStorageSnippet,
+            runtimeIndexedStorageSnippet,
+            meshDescSnippet,
+            meshletDescSnippet,
+            instanceDescSnippet,
+            triangleCountAtomicSnippet,
+            runtimeMeshletMapSnippet,
+            reuseVisibilityIndirectSnippet,
+        );
 
+        const dispatch = new ComputeProperty(
+            visibilityBufferTexture.Width / reuseVisibilityBufferComponent.WorkGropuSizeX,
+            visibilityBufferTexture.Height / reuseVisibilityBufferComponent.WorkGropuSizeY,
+            1
+        );
 
+        const WGSLCode = reuseVisibilityBufferComponent.build();
 
+        console.log(WGSLCode);
 
-    const indexedStorageSnippet: IndexedStorageSnippet = new IndexedStorageSnippet(compiler);
+        const desc: ComputeHolderDesc = {
+            label: 'reuse visibility buffer, generate dynamic indexed buffer and indirect buffer.',
+            computeShader: compiler.createComputeShader({ code: WGSLCode, entryPoint: 'cp_main' }),
+            uniforms: new Uniforms(),
+            dispatch: dispatch
+        };
 
+        desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
+        desc.uniforms?.assign(visibilityBufferSnippet.getVariableName(), visibilityBufferTexture);
+        desc.uniforms?.assign(staticIndexedStorageSnippet.getVariableName(), staticIndexedStorageBuffer);
+        desc.uniforms?.assign(runtimeIndexedStorageSnippet.getVariableName(), runtimeIndexedStorageBuffer);
+        desc.uniforms?.assign(meshDescSnippet.getVariableName(), meshDescBuffer);
+        desc.uniforms?.assign(meshletDescSnippet.getVariableName(), meshletDescBuffer);
+        desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
+        desc.uniforms?.assign(triangleCountAtomicSnippet.getVariableName(), triangleCountAtomicBuffer);
+        desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), meshletMapRuntimeBuffer);
+        desc.uniforms?.assign(reuseVisibilityIndirectSnippet.getVariableName(), reuseVisibilityIndirectBuffer);
+
+        holders.push(compiler.compileComputeHolder(desc));
+    }
 
 
     // raf
     {
-        // earthScene.forceUpdateSceneManager();
-        const meshletVisHolder: RenderHolder | undefined = initMeshletVisShader(
-            context,
-            compiler,
-            earthScene,
-            colorAttachments,
-            depthStencilAttachment,
-            {
-                fragmentSnippet: fragmentSnippet,
-                vertexSnippet: vertexSnippet,
-                instanceDescSnippet: instanceDescSnippet,
-                viewProjectionSnippet: viewProjectionSnippet,
-                viewSnippet: viewSnippet,
-                meshDescSnippet: meshDescSnippet,
-                indexedStorageSnippet: indexedStorageSnippet,
-                instanceOrderSnippet: instanceOrderSnippet
-            }
-        );
-
         // const graph: OrderedGraph = new OrderedGraph(context);
         const renderLoop = async () => {
             earthScene.updateSceneData();
+
             context.refreshFrameResource();
             const encoder = context.getCommandEncoder();
-            meshletVisHolder?.build(encoder);
+            holders.forEach(holder => {
+                holder.build(encoder);
+            });
             context.submitFrameResource();
+
+            // debug
+            await debugHandler();
+
             requestAnimationFrame(renderLoop);
         };
         requestAnimationFrame(renderLoop);

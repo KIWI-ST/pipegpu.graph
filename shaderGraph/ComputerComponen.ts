@@ -29,6 +29,27 @@ abstract class ComputeComponent extends BaseComponent {
 
     /**
      * 
+     */
+    public get WorkGropuSizeX() {
+        return this.workGroupSize[0];
+    }
+
+    /**
+     * 
+     */
+    public get WorkGropuSizeY() {
+        return this.workGroupSize[1];
+    }
+
+    /**
+     * 
+     */
+    public get WorkGropuSizeZ() {
+        return this.workGroupSize[2];
+    }
+
+    /**
+     * 
      * @returns 
      */
     override build(): string {

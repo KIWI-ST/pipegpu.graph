@@ -1,4 +1,4 @@
-import type { Compiler } from "pipegpu";
+import type { Compiler, Texture2D } from "pipegpu";
 import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSnippet";
 
 /**
@@ -9,6 +9,35 @@ class VisibilityBufferSnippet extends BaseSnippet {
     constructor(compiler: Compiler) {
         super(compiler, 'visibility_buffer_snippet')
     }
+
+    /**
+     * 
+     * @param width 
+     * @param height 
+     * @returns 
+     */
+    getVisbilityTexture = (width: number, height: number): Texture2D => {
+        return this.compiler.createTexture2D({
+            width: width,
+            height: height,
+            textureFormat: 'r32uint',
+            mipmapCount: 1,
+            appendixTextureUsages: GPUTextureUsage.STORAGE_BINDING
+        });
+    }
+
+    /**
+     * 
+     */
+    getVisibilityColorAttachment = (visbilityTexture: Texture2D) => {
+        return this.compiler.createColorAttachment({
+            texture: visbilityTexture,
+            blendFormat: 'opaque',
+            colorLoadStoreFormat: 'clearStore',
+            clearColor: [0.0, 0.0, 0.0, 1.0]
+        });
+    }
+
 
     override initShaderCode(_groupIndex: number, _bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         // r32uint

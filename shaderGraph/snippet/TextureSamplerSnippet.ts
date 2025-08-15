@@ -15,6 +15,19 @@ class TextureSamplerSnippet extends BaseSnippet {
 
     /**
      * 
+     */
+    getTextureSampler = () => {
+        return this.compiler.createTextureSampler({
+            minFilter: 'nearest',
+            magFilter: 'nearest',
+            addressModeU: 'repeat',
+            addressModeV: 'repeat',
+            addressModeW: 'repeat'
+        });
+    }
+
+    /**
+     * 
      * @param groupIndex 
      * @param bindingIndex 
      * @param _shaderCodeFormat 

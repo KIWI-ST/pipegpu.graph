@@ -64,7 +64,7 @@ class ReuseVisibilityBufferComponent extends ComputeComponent {
         this.append(this.runtimeMeshletMapSnippet);
         this.append(this.indirectSnippet);
 
-        this.workGroupSize = [1, 1, 1];
+        this.workGroupSize = [16, 16, 1];
     }
 
     build(): string {
@@ -91,7 +91,7 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
     let runtime_meshlet_id: u32 = (pack_id >> 7u) - runtiem_meshlet_id_offset;
     let triangle_id: u32 = pack_id & 0x7Fu;
 
-    let instance_meshlet_id_pair: vec2<u32> = ${this.runtimeMeshletMapSnippet.getVariableName()}[[runtime_meshlet_id]];
+    let instance_meshlet_id_pair: vec2<u32> = ${this.runtimeMeshletMapSnippet.getVariableName()}[runtime_meshlet_id];
     let instance_id: u32 = instance_meshlet_id_pair.x;
     let meshlet_id: u32 = instance_meshlet_id_pair.y;
 
@@ -108,11 +108,11 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
     // regroup index buffer(dynamic index buffer) and indirect buffer according to runtime triangle id
     let index: u32 = atomicAdd(&${this.triangleCountSnippet.getVariableName()}, 1u);
     ${this.dynamicIndexedStorageSnippet.getVariableName()}[index * 3] = vertex_id_0;
-    ${this.dynamicIndexedStorageSnippet.getVariableName()} = vertex_id_1;
+    ${this.dynamicIndexedStorageSnippet.getVariableName()}[index * 3 + 1] = vertex_id_1;
     ${this.dynamicIndexedStorageSnippet.getVariableName()}[index * 3 + 2] = vertex_id_2;
 
     // write indirect draw count buffer 
-    ${this.indirectSnippet.getVariableName()}[index] = { 12}(3, 1, index * 3, instance_id);
+    ${this.indirectSnippet.getVariableName()}[index] = ${this.indirectSnippet.getStructName()}(3, 1, index * 3, instance_id);
 }
         `;
 

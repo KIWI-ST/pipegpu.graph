@@ -7,7 +7,7 @@ import { fetchJSON, type Instance, type InstanceDataPack } from "../../util/fetc
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from "../../util/fetchKTX";
 import { webMercatorTileSchema } from "./earth/QuadtreeTileSchema";
 import { WGS84 } from "./earth/Ellipsoid";
-import type { Compiler, Context, IndexedIndirectBuffer, StorageBuffer, UniformBuffer } from "pipegpu";
+import type { Compiler, Context, IndexedIndirectBuffer, IndirectBuffer, StorageBuffer, UniformBuffer } from "pipegpu";
 import type { IndexedStorageBuffer } from "pipegpu/src/res/buffer/IndexedStorageBuffer";
 import type { Handle1D, Handle2D, HandleDetail } from "pipegpu/src/res/buffer/BaseBuffer";
 
@@ -80,14 +80,16 @@ class EarthScene {
 
     private viewProjectionBuffer!: UniformBuffer;                // 视域矩阵 buffer          -- done
     private viewPlaneBuffer!: UniformBuffer;                     // 视锥边缘面               -- done
-    private viewBuffer!: UniformBuffer;                           // 视角                     -- done
+    private viewBuffer!: UniformBuffer;                           // 视角                    -- done
     private vertexBuffer!: StorageBuffer;                        // 密集型顶点 buffer        -- done
     private instanceOrderBuffer!: StorageBuffer;                 // 实例顺序 buffer          -- done
     private instanceDescBuffer!: StorageBuffer;                  // 实例描述 buffer          -- done
     private meshDescBuffer!: StorageBuffer;                      // 物件描述 buffer          -- done    
     private meshletDescBuffer!: StorageBuffer;                   // 簇描述 buffer            -- done
     private indexedIndirectBuffer!: IndexedIndirectBuffer;       // 间接绘制命令 buffer       -- done
-    private indexedStoragebuffer!: IndexedStorageBuffer;         // 索引                      -- done
+    private indexedStorageStaticBuffer!: IndexedStorageBuffer;   // 索引, 场景对应            -- done
+    private indexedStorageRuntimeBuffer!: IndexedStorageBuffer;  // 索引，动态               -- done
+    private hardwareRasterizationIndirectBuffer!: IndirectBuffer; // 间接绘制命令集合
     private indirectDrawCountBuffer!: StorageBuffer;             // 间接命令绘制数量 buffer
     private maxDrawCount: number = 0;                            // 间接绘制命令执行最大数量
 
@@ -560,7 +562,7 @@ class EarthScene {
         });
     }
 
-    private initIndexedStorageBuffer = () => {
+    private initIndexedStorageStaticBuffer = () => {
         const handler: Handle2D = () => {
             if (this.indexedQueue.length) {
                 const details: HandleDetail[] = [];
@@ -588,9 +590,16 @@ class EarthScene {
         }
         // 支持最大十万级物件渲染
         // indirect 长度无法估计，使用最大 buffer size
-        this.indexedStoragebuffer = this.compiler.createIndexedStorageBuffer({
+        this.indexedStorageStaticBuffer = this.compiler.createIndexedStorageBuffer({
             totalByteLength: this.context.getLimits().maxStorageBufferBindingSize,
             handler: handler
+        });
+    }
+
+    private initIndexedStorageRuntimeBuffer = () => {
+        this.indexedStorageRuntimeBuffer = this.compiler.createIndexedStorageBuffer({
+            totalByteLength: this.context.getLimits().maxStorageBufferBindingSize,
+            rawData: []
         });
     }
 
@@ -624,7 +633,8 @@ class EarthScene {
         this.initMeshDescBuffer();
         this.initMeshletDescBuffer();
         this.initIndexedIndirectBuffer();
-        this.initIndexedStorageBuffer();
+        this.initIndexedStorageStaticBuffer();
+        this.initIndexedStorageRuntimeBuffer();
         this.initIndirectDrawCountBuffer();
     }
 
@@ -911,17 +921,26 @@ class EarthScene {
         return this.indexedIndirectBuffer;
     }
 
-    public get IndexedStoragebuffer(): IndexedStorageBuffer {
-        return this.indexedStoragebuffer;
+    public get StaticIndexedStorageBuffer(): IndexedStorageBuffer {
+        return this.indexedStorageStaticBuffer;
+    }
+
+    public get RuntimeIndexedStorageBuffer(): IndexedStorageBuffer {
+        return this.indexedStorageRuntimeBuffer;
     }
 
     public get IndirectDrawCountBuffer(): StorageBuffer {
         return this.indirectDrawCountBuffer
     }
 
+    public get HardwareRasterizationIndirectBuffer(): IndirectBuffer {
+        return this.hardwareRasterizationIndirectBuffer;
+    }
+
     public get MaxDrawCount(): number {
         return this.maxDrawCount;
     }
+
 }
 
 export {
