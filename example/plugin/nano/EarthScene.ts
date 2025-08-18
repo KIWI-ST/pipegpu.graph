@@ -48,6 +48,8 @@ class EarthScene {
     private compiler: Compiler;
     private context: Context;
 
+    private maxInstanceCount: number = 0;                                                            // 记录场景内最大的 instance 数量
+
     private sceneTileMap: Map<string, InstanceDataPack> = new Map();                                // instances
     private sceneMeshMap: Map<string, MeshDataPack> = new Map();                                    // meshes
     private sceneTextureMap: Map<string, KTXPackData> = new Map();                                  // texture array
@@ -78,34 +80,34 @@ class EarthScene {
     private meshletIndexedOffset: number = 0;
     private indexSizeOffset: number = 0;
 
-    private viewProjectionBuffer!: UniformBuffer;                // 视域矩阵 buffer          -- done
-    private viewPlaneBuffer!: UniformBuffer;                     // 视锥边缘面               -- done
-    private viewBuffer!: UniformBuffer;                           // 视角                    -- done
-    private vertexBuffer!: StorageBuffer;                        // 密集型顶点 buffer        -- done
-    private instanceOrderBuffer!: StorageBuffer;                 // 实例顺序 buffer          -- done
-    private instanceDescBuffer!: StorageBuffer;                  // 实例描述 buffer          -- done
-    private meshDescBuffer!: StorageBuffer;                      // 物件描述 buffer          -- done    
-    private meshletDescBuffer!: StorageBuffer;                   // 簇描述 buffer            -- done
-    private indexedIndirectBuffer!: IndexedIndirectBuffer;       // 间接绘制命令 buffer       -- done
-    private indexedStorageStaticBuffer!: IndexedStorageBuffer;   // 索引, 场景对应            -- done
-    private indexedStorageRuntimeBuffer!: IndexedStorageBuffer;  // 索引，动态               -- done
-    private hardwareRasterizationIndirectBuffer!: IndirectBuffer; // 间接绘制命令集合
-    private indirectDrawCountBuffer!: StorageBuffer;             // 间接命令绘制数量 buffer
-    private maxDrawCount: number = 0;                            // 间接绘制命令执行最大数量
+    private viewProjectionBuffer!: UniformBuffer;                   // 视域矩阵 buffer          -- done
+    private viewPlaneBuffer!: UniformBuffer;                        // 视锥边缘面               -- done
+    private viewBuffer!: UniformBuffer;                             // 视角                    -- done
+    private vertexBuffer!: StorageBuffer;                           // 密集型顶点 buffer        -- done
+    private instanceOrderBuffer!: StorageBuffer;                    // 实例顺序 buffer          -- done
+    private instanceDescBuffer!: StorageBuffer;                     // 实例描述 buffer          -- done
+    private meshDescBuffer!: StorageBuffer;                         // 物件描述 buffer          -- done    
+    private meshletDescBuffer!: StorageBuffer;                      // 簇描述 buffer            -- done
+    private indexedIndirectBuffer!: IndexedIndirectBuffer;          // 间接绘制命令 buffer       -- done
+    private indexedStorageStaticBuffer!: IndexedStorageBuffer;      // 索引, 场景对应            -- done
+    private indexedStorageRuntimeBuffer!: IndexedStorageBuffer;     // 索引，动态               -- done
+    private hardwareRasterizationIndirectBuffer!: IndirectBuffer;   // 间接绘制命令集合
+    private indirectDrawCountBuffer!: StorageBuffer;                // 间接命令绘制数量 buffer
+    private maxMeshletCount: number = 0;                            // 间接绘制命令执行最大数量
 
-    private sceneVertexBufferOffset: number = 0;                 // 场景级顶点缓冲偏移
-    private sceneInstanceOrderBufferOffset: number = 0;          // 场景级实例缓冲偏移
-    private sceneInstanceDescBufferOffset: number = 0;           // 场景实例描述缓冲偏移
-    private sceneMeshDescBufferOffset: number = 0;               // 场景物件描述缓冲偏移
-    private sceneMeshletBufferOffset: number = 0;                // 场景簇缓冲偏移
-    private sceneIndexedIndirectBufferOffset: number = 0;        // 常见间接绘制缓冲偏移
-    private sceneIndexedStorageBufferOffset: number = 0;         // 场景索引缓冲偏移
+    private sceneVertexBufferOffset: number = 0;                    // 场景级顶点缓冲偏移
+    private sceneInstanceOrderBufferOffset: number = 0;             // 场景级实例缓冲偏移
+    private sceneInstanceDescBufferOffset: number = 0;              // 场景实例描述缓冲偏移
+    private sceneMeshDescBufferOffset: number = 0;                  // 场景物件描述缓冲偏移
+    private sceneMeshletBufferOffset: number = 0;                   // 场景簇缓冲偏移
+    private sceneIndexedIndirectBufferOffset: number = 0;           // 常见间接绘制缓冲偏移
+    private sceneIndexedStorageBufferOffset: number = 0;            // 场景索引缓冲偏移
 
-    private maxInstanceNum = 100000;                             // 最大物件数
+    private maxInstanceNum = 100000;                                // 最大物件数
 
-    private lng: number = 0;                                     // 经度
-    private lat: number = 0;                                     // 纬度
-    private alt: number = 0;                                     // 高程
+    private lng: number = 0;                                        // 经度
+    private lat: number = 0;                                        // 纬度
+    private alt: number = 0;                                        // 高程
 
     constructor(
         rootUri: string,
@@ -402,6 +404,8 @@ class EarthScene {
                     });
                     this.sceneInstanceDescBufferOffset += buffer.byteLength;
                     instanceDesc = this.instanceDescQueue.shift();
+                    // 统计 scene 场景内最大 instance 数量
+                    this.maxInstanceCount++
                 }
                 return {
                     rewrite: true,
@@ -609,7 +613,7 @@ class EarthScene {
             details.push({
                 byteLength: 4,
                 offset: 0,
-                rawData: new Uint32Array([this.maxDrawCount]),
+                rawData: new Uint32Array([this.maxMeshletCount]),
             });
             return {
                 rewrite: true,
@@ -738,7 +742,7 @@ class EarthScene {
                 this.indexedIndirectQueue.push(diibData);
                 // 一个 meshlet 对应一个 indexed indirect draw command.
                 // 一个 meshlet 对应一个 draw count.
-                this.maxDrawCount++;
+                this.maxMeshletCount++;
             });
             this.instanceOrderQueue.push(new Uint32Array([instanceRuntimeID]));
         }
@@ -937,8 +941,12 @@ class EarthScene {
         return this.hardwareRasterizationIndirectBuffer;
     }
 
-    public get MaxDrawCount(): number {
-        return this.maxDrawCount;
+    public get MaxMeshletCount(): number {
+        return this.maxMeshletCount;
+    }
+
+    public get MaxInstanceCount(): number {
+        return this.maxInstanceCount;
     }
 
 }

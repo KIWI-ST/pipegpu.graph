@@ -32,7 +32,7 @@ const initMeshletVisShader = (
         earthScene.IndexedIndirectBuffer,
         earthScene.IndirectDrawCountBuffer,
         () => {
-            return earthScene.MaxDrawCount;
+            return earthScene.MaxMeshletCount;
         }
     );
 
