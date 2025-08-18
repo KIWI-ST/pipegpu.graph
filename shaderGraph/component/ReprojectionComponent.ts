@@ -107,11 +107,6 @@ class ReprojectionComponent extends RenderComponent {
         let renderCode = super.build();
         renderCode += `
 
- std::string code = "";
-        code += RenderShader::Build();
-        code += fmt::format(
-            R"(
-
 struct ReprojectionFragment
 {
     @builtin(position) position: vec4<f32>,
