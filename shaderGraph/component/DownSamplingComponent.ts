@@ -2,29 +2,48 @@ import type { Compiler, Context } from "pipegpu";
 import type { Texture2DSnippet } from "../snippet/Texture2DSnippet";
 import type { TextureStorage2DR32FSnippet } from "../snippet/TextureStorage2DR32FSnippet";
 import { ComputeComponent } from "../ComputerComponen";
+import type { DebugSnippet } from "../snippet/DebugSnippet";
 
 /**
  * 
  */
 class DownsamplingComponent extends ComputeComponent {
-
+    /**
+     * 
+     */
     private texture2DSnippet: Texture2DSnippet;
 
+    /**
+     * 
+     */
     private textureStorage2DSnippet: TextureStorage2DR32FSnippet;
 
+    /**
+     * 
+     */
+    private debugSnippet: DebugSnippet;
+
+    /**
+     * 
+     * @param context 
+     * @param compiler 
+     * @param texture2DSnippet 
+     * @param textureStorage2DSnippet 
+     */
     constructor(
         context: Context,
         compiler: Compiler,
+        debugSnippet: DebugSnippet,
         texture2DSnippet: Texture2DSnippet,
         textureStorage2DSnippet: TextureStorage2DR32FSnippet
     ) {
         super(context, compiler);
+        this.debugSnippet = debugSnippet;
         this.texture2DSnippet = texture2DSnippet;
         this.textureStorage2DSnippet = textureStorage2DSnippet;
-
-        this.append(texture2DSnippet);
-        this.append(textureStorage2DSnippet);
-
+        this.append(this.debugSnippet);
+        this.append(this.texture2DSnippet);
+        this.append(this.textureStorage2DSnippet);
         this.workGroupSize = [8, 8, 1];
     }
 
@@ -38,7 +57,7 @@ fn cp_main(@builtin(global_invocation_id) global_id: vec3<u32>)
     let src_dim = textureDimensions(${this.texture2DSnippet.getVariableName()});
     let dst_dim = textureDimensions(${this.textureStorage2DSnippet.getVariableName()});
     let slice_x: u32 = src_dim.x/dst_dim.x;
-    let slice_y: u32 =src_dim.y/dst_dim.y;
+    let slice_y: u32 = src_dim.y/dst_dim.y;
 
     if(global_id.x > dst_dim.x || global_id.y>dst_dim.y) {
         return;
@@ -61,6 +80,10 @@ fn cp_main(@builtin(global_invocation_id) global_id: vec3<u32>)
 
     let color4: vec4<f32> = vec4<f32>(mean, 0.0, 0.0, 1.0);
     textureStore(${this.textureStorage2DSnippet.getVariableName()}, global_id.xy, color4);
+
+    /////////////////////////////////////DEBUG-START///////////////////////////////////////
+    ${this.debugSnippet.getVariableName()}[0].b = textureLoad(${this.texture2DSnippet.getVariableName()}, vec2<u32>(10, 100), 0).r;
+    /////////////////////////////////////DEBUG-END///////////////////////////////////////
 }
         
         `;

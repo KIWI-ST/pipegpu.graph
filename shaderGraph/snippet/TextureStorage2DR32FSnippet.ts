@@ -18,7 +18,8 @@ class TextureStorage2DR32FSnippet extends BaseSnippet {
             width: width,
             height: height,
             mipmapCount: mipmapCount,
-            textureFormat: textureFormat
+            textureFormat: textureFormat,
+            appendixTextureUsages: GPUTextureUsage.COPY_SRC,
         });
     }
 

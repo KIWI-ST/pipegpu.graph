@@ -8,8 +8,6 @@ import type { MeshletDescSnippet } from "../snippet/MeshletSnippet";
 import type { InstanceDescSnippet } from "../snippet/InstanceDescSnippet";
 import type { VertexSnippet } from "../snippet/VertexSnippet";
 import type { IndexedStorageSnippet } from "../snippet/IndexedStorageSnippet";
-// import type { StorageAtomicU32Snippet } from "../snippet/StorageAtomicU32Snippet";
-// import type { StorageVec2U32Snippet } from "../snippet/StorageVec2U32Snippet";
 
 /**
  * 
@@ -57,14 +55,17 @@ class ReprojectionComponent extends RenderComponent {
 
     /**
      * 
+     * @param context 
+     * @param compiler 
+     * @param debugSnippet 
+     * @param fragmentDescSnippet 
+     * @param viewProjectionSnippet 
+     * @param meshDescSnippet 
+     * @param meshletDescSnippet 
+     * @param instanceDescSnippet 
+     * @param vertexSnippet 
+     * @param indexedStorageSnippet 
      */
-    // private triangleCountSnippet: StorageAtomicU32Snippet;
-
-    /**
-     * 
-     */
-    // private runtimeMeshletMapSnippet: StorageVec2U32Snippet;
-
     constructor(
         context: Context,
         compiler: Compiler,
@@ -76,8 +77,6 @@ class ReprojectionComponent extends RenderComponent {
         instanceDescSnippet: InstanceDescSnippet,
         vertexSnippet: VertexSnippet,
         indexedStorageSnippet: IndexedStorageSnippet,
-        // triangleCountSnippet: StorageAtomicU32Snippet,
-        // runtimeMeshletMapSnippet: StorageVec2U32Snippet
     ) {
         super(context, compiler);
         this.debugSnippet = debugSnippet;
@@ -88,9 +87,6 @@ class ReprojectionComponent extends RenderComponent {
         this.instanceDescSnippet = instanceDescSnippet;
         this.vertexSnippet = vertexSnippet;
         this.indexedStorageSnippet = indexedStorageSnippet;
-        // this.triangleCountSnippet = triangleCountSnippet;
-        // this.runtimeMeshletMapSnippet = runtimeMeshletMapSnippet;
-
         this.append(this.debugSnippet);
         this.append(this.fragmentDescSnippet);
         this.append(this.viewProjectionSnippet);
@@ -99,8 +95,6 @@ class ReprojectionComponent extends RenderComponent {
         this.append(this.instanceDescSnippet);
         this.append(this.vertexSnippet);
         this.append(this.indexedStorageSnippet);
-        // this.append(triangleCountSnippet);
-        // this.append(runtimeMeshletMapSnippet);
     }
 
     build(): string {

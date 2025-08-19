@@ -2,10 +2,21 @@ import type { Compiler, Context, Texture2D } from "pipegpu";
 import { RenderComponent } from "../RenderComponen";
 import type { DebugSnippet } from "../snippet/DebugSnippet";
 
+/**
+ * 
+ */
 class DepthClearComponent extends RenderComponent {
-
+    /**
+     * 
+     */
     debugSnippet: DebugSnippet;
 
+    /**
+     * 
+     * @param context 
+     * @param compiler 
+     * @param debugSnippet 
+     */
     constructor(
         context: Context,
         compiler: Compiler,
@@ -20,10 +31,10 @@ class DepthClearComponent extends RenderComponent {
      * 
      * @param depthTexture 
      */
-    createClearDepthStencilAttachment = (depthTexture: Texture2D) => {
+    getClearDepthStencilAttachment = (depthTexture: Texture2D) => {
         return this.compiler.createDepthStencilAttachment({
             texture: depthTexture,
-            depthLoadStoreFormat: 'loadStore',
+            depthLoadStoreFormat: 'clearStore',
             depthCompareFunction: 'less-equal',
             depthReadOnly: false,
             depthClearValue: 1.0,
@@ -48,7 +59,12 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4<f
 }
 
 @fragment
-fn fs_main() -> @location(0) vec4<f32> {
+fn fs_main(@builtin(position) f: vec4<f32>) -> @location(0) vec4<f32> {
+
+    /////////////////////////////////////DEBUG-START///////////////////////////////////////
+    ${this.debugSnippet.getVariableName()}[0].b = f.z;
+    /////////////////////////////////////DEBUG-END///////////////////////////////////////
+
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);
 }
 

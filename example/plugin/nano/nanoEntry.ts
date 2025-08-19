@@ -78,6 +78,8 @@ const nanoEntry = async (
         texture: depthTexture,
         depthCompareFunction: 'less-equal',
         depthLoadStoreFormat: 'clearStore',
+        depthReadOnly: false,
+        depthClearValue: 0.0,
     });
 
     const MAX_MIPMAP_COUNT = depthStencilAttachment.getTexture().MaxMipmapCount;
@@ -152,13 +154,10 @@ const nanoEntry = async (
     const holders: BaseHolder[] = [];
 
     // debug
-    let debugHandler;
-    {
-        debugHandler = async () => {
-            const ab: ArrayBuffer = await debugBuffer.PullDataAsync() as ArrayBuffer;
-            const f32 = new Float32Array(ab as ArrayBuffer);
-            // console.log(f32);
-        }
+    const debugHandler = async () => {
+        const ab: ArrayBuffer = await debugBuffer.PullDataAsync() as ArrayBuffer;
+        const f32 = new Float32Array(ab as ArrayBuffer);
+        console.log(f32);
     }
 
     // 1. 基于可见性缓冲生成 index buffer 和 indirect buffer （重投影过程）
@@ -207,7 +206,7 @@ const nanoEntry = async (
         const depthClearComponent: DepthClearComponent = new DepthClearComponent(context, compiler, debugSnippet);
         // 通过 attachment, 指定 depthTexture 初始化的办法
         // 完成原子化操作
-        const depthClearAttachment = depthClearComponent.createClearDepthStencilAttachment(depthTexture);
+        const depthClearAttachment = depthClearComponent.getClearDepthStencilAttachment(depthTexture);
         const WGSLCode = depthClearComponent.build();
         const dispatch: RenderProperty = new RenderProperty(6, 1);
         const desc: RenderHolderDesc = {
@@ -221,6 +220,7 @@ const nanoEntry = async (
                 entryPoint: 'fs_main'
             }),
             dispatch: dispatch,
+            uniforms: new Uniforms,
             colorAttachments: colorAttachments,
             depthStencilAttachment: depthClearAttachment
         };
@@ -271,11 +271,14 @@ const nanoEntry = async (
     }
 
     // 4. 输入深度，生成 hzb
-    // 4-1, 拷贝深度到r32 storage texture
+    // 4 - 1, 拷贝深度到 r32 storage texture
+    // 步骤 1：先把 depthTexture 的数据拷贝到 hzbTextureStorage 
+    // 步骤 2：后把 hzbTextureStorage 里的数据写到 hzbTexture 
     {
         const depthCopyComponent: DepthCopyComponent = new DepthCopyComponent(
             context,
             compiler,
+            debugSnippet,
             depthTextureSnippet,
             hzbTextureStorageSnippet
         );
@@ -288,52 +291,80 @@ const nanoEntry = async (
             1
         );
         const desc: ComputeHolderDesc = {
-            label: '',
+            label: 'depth texture copy, form depth to r32float texture',
             computeShader: compiler.createComputeShader({
                 code: WGSLCode, entryPoint: 'cp_main'
             }),
             uniforms: new Uniforms,
             dispatch: dispatch
         };
+        // 拷贝第 0 层 (texture view 0)到 texture_storage_2d 里
+        desc.handler = (encoder: GPUCommandEncoder): void => {
+            const copySize: GPUExtent3DDict = {
+                width: viewportWidth,
+                height: viewportHeight,
+                depthOrArrayLayers: 1
+            };
+            const src: GPUTexelCopyTextureInfo = {
+                texture: hzbTextureStorage.getGpuTexture(),
+                mipLevel: 0,
+                origin: [0, 0, 0],
+                aspect: 'all'
+            };
+            const dst: GPUTexelCopyTextureInfo = {
+                texture: hzbTexture.getGpuTexture(),
+                mipLevel: 0,
+                origin: [0, 0, 0],
+                aspect: 'all'
+            };
+            encoder.copyTextureToTexture(src, dst, copySize);
+        };
+        desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
         desc.uniforms?.assign(depthTextureSnippet.getVariableName(), depthTexture);
         desc.uniforms?.assign(hzbTextureStorageSnippet.getVariableName(), hzbTextureStorage);
         holders.push(compiler.compileComputeHolder(desc));
     }
 
-    // // 4. 输入深度，生成 hzb
-    // // 4-2, 指定降采样完成 hzb 生成
-    // {
-    //     const downsamplingComponent: DownsamplingComponent = new DownsamplingComponent(
-    //         context,
-    //         compiler,
-    //         hzbTextureSnippet,
-    //         hzbTextureStorageSnippet
-    //     );
-    //     const WGSLCode = downsamplingComponent.build();
-    //     const computeShader = compiler.createComputeShader({
-    //         code: WGSLCode,
-    //         entryPoint: 'cp_main'
-    //     });
-    //     for (let k = 1; k < hzbTextureStorage.MaxMipmapCount; k++) {
-    //         const sourceCursor = k - 1, destCursor = k;
-    //         hzbTexture.cursor(sourceCursor);
-    //         hzbTextureStorage.cursor(destCursor);
-    //         const dispatch = new ComputeProperty(
-    //             Math.ceil(viewportWidth >> k / downsamplingComponent.WorkGropuSizeX),
-    //             Math.ceil(viewportHeight >> k / downsamplingComponent.WorkGropuSizeY),
-    //             1
-    //         );
-    //         const desc: ComputeHolderDesc = {
-    //             label: `download sampling: ${k}`,
-    //             computeShader: computeShader,
-    //             uniforms: new Uniforms,
-    //             dispatch: dispatch
-    //         };
-    //         desc.uniforms?.assign(hzbTextureSnippet.getVariableName(), hzbTexture);
-    //         desc.uniforms?.assign(hzbTextureStorageSnippet.getVariableName(), hzbTextureStorage);
-    //         holders.push(compiler.compileComputeHolder(desc));
-    //     }
-    // }
+    // 4. 输入深度，生成 hzb
+    // 4-2, 指定降采样完成 hzb 生成
+    // 步骤0：hzbTexture view0 已写入
+    // 步骤1：hzbTexture 和 hzbStorageTexture 倒换完成 mipmap 的生成
+    // 步骤1：子流程 hzbTexture 降采样写到分辨率为一半的 hzbTextureStorage
+    // 步骤1：子流程 hzbTextureStorage 的 view[k] 同步写入 hzbTexture 同级 view[k] 里
+    {
+        const downsamplingComponent: DownsamplingComponent = new DownsamplingComponent(
+            context,
+            compiler,
+            debugSnippet,
+            hzbTextureSnippet,
+            hzbTextureStorageSnippet
+        );
+        const WGSLCode = downsamplingComponent.build();
+        const computeShader = compiler.createComputeShader({
+            code: WGSLCode,
+            entryPoint: 'cp_main'
+        });
+        for (let k = 1; k < hzbTextureStorage.MaxMipmapCount; k++) {
+            const sourceCursor = k - 1, destCursor = k;
+            hzbTexture.cursor(sourceCursor);
+            hzbTextureStorage.cursor(destCursor);
+            const dispatch = new ComputeProperty(
+                Math.ceil(viewportWidth >> k / downsamplingComponent.WorkGropuSizeX),
+                Math.ceil(viewportHeight >> k / downsamplingComponent.WorkGropuSizeY),
+                1
+            );
+            const desc: ComputeHolderDesc = {
+                label: `download sampling: ${k}`,
+                computeShader: computeShader,
+                uniforms: new Uniforms,
+                dispatch: dispatch
+            };
+            desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
+            desc.uniforms?.assign(hzbTextureSnippet.getVariableName(), hzbTexture);
+            desc.uniforms?.assign(hzbTextureStorageSnippet.getVariableName(), hzbTextureStorage);
+            holders.push(compiler.compileComputeHolder(desc));
+        }
+    }
 
     // // 5. 实例剔除
     // {
