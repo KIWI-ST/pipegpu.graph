@@ -16,19 +16,19 @@ class DebugSnippet extends BaseSnippet {
 
 struct ${this.shaderCode.structName}
 {
-    total_instance_count: f32,
-    instance_count: f32,
-    depth: f32,
-    depth1: f32,
-    mip_level: f32,
-    view_port_x: f32,
-    view_port_y: f32,
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
-    u: f32,
-    v: f32,
+    a: f32,
+    b: f32,
+    c: f32,
+    d: f32,
+    e: f32,
+    f: f32,
+    g: f32,
+    h: f32,
+    i: f32,
+    j: f32,
+    k: f32,
+    l: f32,
+    m: f32,
 };
         
         `;

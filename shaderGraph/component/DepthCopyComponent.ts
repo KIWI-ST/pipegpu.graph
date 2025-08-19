@@ -7,11 +7,23 @@ import type { TextureStorage2DR32FSnippet } from "../snippet/TextureStorage2DR32
  * 
  */
 class DepthCopyComponent extends ComputeComponent {
-
+    /**
+     * 
+     */
     private depthTextureSnippet: DepthTextureSnippet;
 
+    /**
+     * 
+     */
     private textureStorage2DSnippet: TextureStorage2DR32FSnippet;
 
+    /**
+     * 
+     * @param context 
+     * @param compiler 
+     * @param depthTextureSnippet 
+     * @param textureStorage2DSnippet 
+     */
     constructor(
         context: Context,
         compiler: Compiler,
@@ -19,12 +31,10 @@ class DepthCopyComponent extends ComputeComponent {
         textureStorage2DSnippet: TextureStorage2DR32FSnippet
     ) {
         super(context, compiler);
-
         this.depthTextureSnippet = depthTextureSnippet;
         this.textureStorage2DSnippet = textureStorage2DSnippet;
         this.append(depthTextureSnippet);
         this.append(textureStorage2DSnippet);
-
         this.workGroupSize = [1, 1, 1];
     }
 

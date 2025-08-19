@@ -20,7 +20,8 @@ class StorageAtomicU32Snippet extends BaseSnippet {
         return this.compiler.createStorageBuffer({
             totalByteLength: 4,
             rawData: [new Uint32Array([0])],
-        })
+            bufferUsageFlags: GPUBufferUsage.INDIRECT,
+        });
     }
 
     /**

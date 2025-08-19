@@ -17,7 +17,7 @@ class TextureStorage2DR32FSnippet extends BaseSnippet {
         return this.compiler.createTextureStorage2D({
             width: width,
             height: height,
-            maxMipLevel: mipmapCount,
+            mipmapCount: mipmapCount,
             textureFormat: textureFormat
         });
     }

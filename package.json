@@ -1,6 +1,6 @@
 {
   "name": "pipegpu.graph",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "webgpu based frame graph",
   "main": "index.ts",
   "scripts": {
@@ -13,7 +13,7 @@
   "devDependencies": {
     "@webgpu/types": "^0.1.64",
     "cesium": "^1.131.0",
-    "pipegpu": "^0.2.17",
+    "pipegpu": "^0.3.0",
     "pipegpu.matrix": "^0.6.9",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",

@@ -157,7 +157,7 @@ const nanoEntry = async (
         debugHandler = async () => {
             const ab: ArrayBuffer = await debugBuffer.PullDataAsync() as ArrayBuffer;
             const f32 = new Float32Array(ab as ArrayBuffer);
-            console.log(f32);
+            // console.log(f32);
         }
     }
 
@@ -203,102 +203,102 @@ const nanoEntry = async (
     }
 
     // 2. 重设深度值，全图深度改为 1.0
-    // {
-    //     const depthClearComponent: DepthClearComponent = new DepthClearComponent(context, compiler);
-    //     // 通过 attachment, 指定 depthTexture 初始化的办法
-    //     // 完成原子化操作
-    //     const depthClearAttachment = depthClearComponent.createClearDepthStencilAttachment(depthTexture);
-    //     const WGSLCode = depthClearComponent.build();
-    //     const dispatch: RenderProperty = new RenderProperty(6, 1);
-    //     const desc: RenderHolderDesc = {
-    //         label: 'reset depth, clear depth value to 1.0',
-    //         vertexShader: compiler.createVertexShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'vs_main'
-    //         }),
-    //         fragmentShader: compiler.createFragmentShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'fs_main'
-    //         }),
-    //         dispatch: dispatch,
-    //         colorAttachments: colorAttachments,
-    //         depthStencilAttachment: depthClearAttachment
-    //     };
-    //     holders.push(compiler.compileRenderHolder(desc));
-    // }
+    {
+        const depthClearComponent: DepthClearComponent = new DepthClearComponent(context, compiler, debugSnippet);
+        // 通过 attachment, 指定 depthTexture 初始化的办法
+        // 完成原子化操作
+        const depthClearAttachment = depthClearComponent.createClearDepthStencilAttachment(depthTexture);
+        const WGSLCode = depthClearComponent.build();
+        const dispatch: RenderProperty = new RenderProperty(6, 1);
+        const desc: RenderHolderDesc = {
+            label: 'reset depth, clear depth value to 1.0',
+            vertexShader: compiler.createVertexShader({
+                code: WGSLCode,
+                entryPoint: 'vs_main'
+            }),
+            fragmentShader: compiler.createFragmentShader({
+                code: WGSLCode,
+                entryPoint: 'fs_main'
+            }),
+            dispatch: dispatch,
+            colorAttachments: colorAttachments,
+            depthStencilAttachment: depthClearAttachment
+        };
+        desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
+        holders.push(compiler.compileRenderHolder(desc));
+    }
 
-    // // 3. 重投影深度
-    // {
-    //     const reprojectionComponent: ReprojectionComponent = new ReprojectionComponent(
-    //         context,
-    //         compiler,
-    //         debugSnippet,
-    //         fragmentSnippet,
-    //         viewProjectionSnippet,
-    //         meshDescSnippet,
-    //         meshletDescSnippet,
-    //         instanceDescSnippet,
-    //         vertexSnippet,
-    //         runtimeIndexedStorageSnippet,
-    //     );
-    //     const WGSLCode = reprojectionComponent.build();
-    //     const dispatch = new RenderProperty(runtimeReuseVisibilityIndirectBuffer, triangleCountAtomicBuffer, 2560 * 1440);
-    //     const desc: RenderHolderDesc = {
-    //         label: 'reprojection',
-    //         vertexShader: compiler.createVertexShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'vs_main'
-    //         }),
-    //         fragmentShader: compiler.createFragmentShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'fs_main'
-    //         }),
-    //         uniforms: new Uniforms(),
-    //         dispatch: dispatch,
-    //         colorAttachments: colorAttachments,
-    //         depthStencilAttachment: depthStencilAttachment,
-    //     };
+    // 3. 重投影深度
+    {
+        const reprojectionComponent: ReprojectionComponent = new ReprojectionComponent(
+            context,
+            compiler,
+            debugSnippet,
+            fragmentSnippet,
+            viewProjectionSnippet,
+            meshDescSnippet,
+            meshletDescSnippet,
+            instanceDescSnippet,
+            vertexSnippet,
+            runtimeIndexedStorageSnippet,
+        );
+        const WGSLCode = reprojectionComponent.build();
+        const dispatch = new RenderProperty(runtimeReuseVisibilityIndirectBuffer, triangleCountAtomicBuffer, 2560 * 1440);
+        const desc: RenderHolderDesc = {
+            label: 'reprojection',
+            vertexShader: compiler.createVertexShader({
+                code: WGSLCode,
+                entryPoint: 'vs_main'
+            }),
+            fragmentShader: compiler.createFragmentShader({
+                code: WGSLCode,
+                entryPoint: 'fs_main'
+            }),
+            uniforms: new Uniforms(),
+            dispatch: dispatch,
+            colorAttachments: colorAttachments,
+            depthStencilAttachment: depthStencilAttachment,
+        };
+        desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
+        desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), viewProjectionBuffer);
+        desc.uniforms?.assign(meshDescSnippet.getVariableName(), meshDescBuffer);
+        desc.uniforms?.assign(meshletDescSnippet.getVariableName(), meshletDescBuffer);
+        desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
+        desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
+        desc.uniforms?.assign(runtimeIndexedStorageSnippet.getVariableName(), runtimeIndexedStorageBuffer);
+        desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
+        holders.push(compiler.compileRenderHolder(desc));
+    }
 
-    //     desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
-    //     desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), viewProjectionBuffer);
-    //     desc.uniforms?.assign(meshDescSnippet.getVariableName(), meshDescBuffer);
-    //     desc.uniforms?.assign(meshletDescSnippet.getVariableName(), meshletDescBuffer);
-    //     desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
-    //     desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
-    //     desc.uniforms?.assign(runtimeIndexedStorageSnippet.getVariableName(), runtimeIndexedStorageBuffer);
-    //     desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
-    //     holders.push(compiler.compileRenderHolder(desc));
-    // }
-
-    // // 4. 输入深度，生成 hzb
-    // // 4-1, 拷贝深度到r32 storage texture
-    // {
-    //     const depthCopyComponent = new DepthCopyComponent(
-    //         context,
-    //         compiler,
-    //         depthTextureSnippet,
-    //         hzbTextureStorageSnippet
-    //     );
-    //     const WGSLCode = depthCopyComponent.build();
-    //     depthTexture.cursor(0);
-    //     hzbTextureStorage.cursor(0);
-    //     const dispatch = new ComputeProperty(
-    //         Math.ceil(viewportWidth / depthCopyComponent.WorkGropuSizeX),
-    //         Math.ceil(viewportWidth / depthCopyComponent.WorkGropuSizeY),
-    //         1
-    //     );
-    //     const desc: ComputeHolderDesc = {
-    //         label: '',
-    //         computeShader: compiler.createComputeShader({
-    //             code: WGSLCode, entryPoint: 'cp_main'
-    //         }),
-    //         uniforms: new Uniforms,
-    //         dispatch: dispatch
-    //     };
-    //     desc.uniforms?.assign(depthTextureSnippet.getVariableName(), depthTexture);
-    //     desc.uniforms?.assign(hzbTextureStorageSnippet.getVariableName(), hzbTextureStorage);
-    //     holders.push(compiler.compileComputeHolder(desc));
-    // }
+    // 4. 输入深度，生成 hzb
+    // 4-1, 拷贝深度到r32 storage texture
+    {
+        const depthCopyComponent: DepthCopyComponent = new DepthCopyComponent(
+            context,
+            compiler,
+            depthTextureSnippet,
+            hzbTextureStorageSnippet
+        );
+        const WGSLCode = depthCopyComponent.build();
+        depthTexture.cursor(0);
+        hzbTextureStorage.cursor(0);
+        const dispatch = new ComputeProperty(
+            Math.ceil(viewportWidth / depthCopyComponent.WorkGropuSizeX),
+            Math.ceil(viewportWidth / depthCopyComponent.WorkGropuSizeY),
+            1
+        );
+        const desc: ComputeHolderDesc = {
+            label: '',
+            computeShader: compiler.createComputeShader({
+                code: WGSLCode, entryPoint: 'cp_main'
+            }),
+            uniforms: new Uniforms,
+            dispatch: dispatch
+        };
+        desc.uniforms?.assign(depthTextureSnippet.getVariableName(), depthTexture);
+        desc.uniforms?.assign(hzbTextureStorageSnippet.getVariableName(), hzbTextureStorage);
+        holders.push(compiler.compileComputeHolder(desc));
+    }
 
     // // 4. 输入深度，生成 hzb
     // // 4-2, 指定降采样完成 hzb 生成

@@ -1,6 +1,6 @@
 import type { Compiler, Context } from "pipegpu";
 import { ComputeComponent } from "../ComputerComponen";
-import type { DebugSnippet } from "../snippet/DebugSnippet";
+import { DebugSnippet } from "../snippet/DebugSnippet";
 import type { VisibilityBufferSnippet } from "../snippet/VisibilityBufferSnippet";
 import type { IndexedStorageSnippet } from "../snippet/IndexedStorageSnippet";
 import type { MeshDescSnippet } from "../snippet/MeshDescSnippet";
@@ -82,6 +82,15 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
     let rgba: vec4<u32> = textureLoad(${this.visibilityBufferSnippet.getVariableName()}, global_index.xy);
     let pack_id: u32 = rgba.x;
 
+    /////////////////////////////////////DEBUG-START///////////////////////////////////////
+    ///// f32(atomicLoad(&${this.triangleCountSnippet.getVariableName()}));
+    ${this.debugSnippet.getVariableName()}[0].a = f32(visbility_viewprot_xyz.x);
+    ${this.debugSnippet.getVariableName()}[0].b = f32(visbility_viewprot_xyz.y);
+    ${this.debugSnippet.getVariableName()}[0].c = f32(global_index.x);
+    ${this.debugSnippet.getVariableName()}[0].d = f32(global_index.y);
+    ${this.debugSnippet.getVariableName()}[0].e = f32(pack_id);
+    /////////////////////////////////////DEBUG-END///////////////////////////////////////
+
     // missing cached runtime triangle
     if (pack_id == 0u) {
         return;            
@@ -113,6 +122,9 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
 
     // write indirect draw count buffer 
     ${this.indirectSnippet.getVariableName()}[index] = ${this.indirectSnippet.getStructName()}(3, 1, index * 3, instance_id);
+
+
+
 }
         `;
 
