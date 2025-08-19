@@ -47,6 +47,10 @@ class DepthCopyComponent extends ComputeComponent {
         this.workGroupSize = [1, 1, 1];
     }
 
+    /**
+     * 
+     * @returns 
+     */
     override build(): string {
         let computeCode = super.build();
 
