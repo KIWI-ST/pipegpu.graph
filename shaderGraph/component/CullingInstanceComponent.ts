@@ -239,13 +239,18 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
     let model: mat4x4<f32> = instance.model;
     let bounding_sphere: vec4<f32> = mesh.bounding_sphere;
 
-    if(IsPassFrustum(${this.viewPlaneSnippet.getVariableName()}, model, bounding_sphere) && IsPassOcclusion(${this.viewProjectionSnippet.getVariableName()}, model, bounding_sphere)) {
-        let index: u32 = atomicAdd(&${this.instanceCountSnippet.getVariableName()}, 1u);
-        ${this.instanceOrderSnippet.getVariableName()}[index] = instance_id;
-    }
+    // DEBUG::
+    let index: u32 = atomicAdd(&${this.instanceCountSnippet.getVariableName()}, 1u);
+    ${this.instanceOrderSnippet.getVariableName()}[index] = instance_id;
+
+    // REAL::
+    // if(IsPassFrustum(${this.viewPlaneSnippet.getVariableName()}, model, bounding_sphere) && IsPassOcclusion(${this.viewProjectionSnippet.getVariableName()}, model, bounding_sphere)) {
+    //     let index: u32 = atomicAdd(&${this.instanceCountSnippet.getVariableName()}, 1u);
+    //     ${this.instanceOrderSnippet.getVariableName()}[index] = instance_id;
+    // }
 
     /////////////////////////////////////DEBUG-START///////////////////////////////////////
-    ${this.debugSnippet.getVariableName()}[0].g = f32(instance_id);
+    ${this.debugSnippet.getVariableName()}[0].a = f32(atomicLoad(&${this.instanceCountSnippet.getVariableName()}));
     /////////////////////////////////////DEBUG-END///////////////////////////////////////
 
 }

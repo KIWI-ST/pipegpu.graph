@@ -12,7 +12,7 @@ import {
 
 import * as Cesium from 'cesium'
 
-import { CullingInstanceComponent, CullingMeshletComponent, DepthClearComponent, DepthCopyComponent, DepthTextureSnippet, DownsamplingComponent, HardwareRasterizationComponent, IndirectSnippet, OrderedGraph, ReprojectionComponent, ReuseVisibilityBufferComponent, StorageVec2U32Snippet, Texture2DSnippet, TextureStorage2DR32FSnippet, ViewPlaneSnippet, VisibilityBufferSnippet } from '../../../index'
+import { CullingInstanceComponent, CullingMeshletComponent, DepthClearComponent, DepthCopyComponent, DepthTextureSnippet, DownsamplingComponent, HardwareRasterizationComponent, IndirectSnippet, OrderedGraph, ReprojectionComponent, ResetComponent, ReuseVisibilityBufferComponent, StorageVec2U32Snippet, Texture2DSnippet, TextureStorage2DR32FSnippet, ViewPlaneSnippet, VisibilityBufferSnippet } from '../../../index'
 import { VertexSnippet } from '../../../shaderGraph/snippet/VertexSnippet';
 import { FragmentDescSnippet } from '../../../shaderGraph/snippet/FragmentDescSnippet';
 import { ViewProjectionSnippet } from '../../../shaderGraph/snippet/ViewProjectionSnippet';
@@ -160,6 +160,33 @@ const nanoEntry = async (
         console.warn(`[W] a: ${f32[0]}, b: ${f32[1]}, c: ${f32[2]}, d: ${f32[3]}, e: ${f32[4]}, f: ${f32[5]}, g: ${f32[6]}.`);
         console.log(f32);
     }
+
+    // 0. 重值运行时计数器
+    {
+        const resetComponent: ResetComponent = new ResetComponent(
+            context,
+            compiler,
+            debugSnippet,
+            instanceCountAtomicSnippet,
+            meshletCountAtomicSnippet
+        );
+        const WGSLCode = resetComponent.build();
+        const dispatch = new ComputeProperty(1, 1, 1);
+        const desc: ComputeHolderDesc = {
+            label: 'reset runtime counter. include instance/meshlet counter.',
+            computeShader: compiler.createComputeShader({
+                code: WGSLCode,
+                entryPoint: 'cp_main'
+            }),
+            uniforms: new Uniforms(),
+            dispatch: dispatch
+        };
+        desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
+        desc.uniforms?.assign(instanceCountAtomicSnippet.getVariableName(), instanceCountAtomicBuffer);
+        desc.uniforms?.assign(meshletCountAtomicSnippet.getVariableName(), meshletCountAtomicBuffer);
+        holders.push(compiler.compileComputeHolder(desc));
+    }
+
 
     // 1. 基于可见性缓冲生成 index buffer 和 indirect buffer （重投影过程）
     {
