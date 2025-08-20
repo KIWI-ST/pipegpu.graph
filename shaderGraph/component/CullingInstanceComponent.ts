@@ -83,7 +83,6 @@ class CullingInstanceComponent extends ComputeComponent {
         this.instanceDescSnippet = instanceDescSnippet;
         this.instanceOrderSnippet = instanceOrderSnippet;
         this.instanceCountSnippet = instanceCountSnippet;
-
         this.append(this.debugSnippet);
         this.append(this.viewProjectionSnippet);
         this.append(this.viewPlaneSnippet);
@@ -93,7 +92,6 @@ class CullingInstanceComponent extends ComputeComponent {
         this.append(this.instanceDescSnippet);
         this.append(this.instanceOrderSnippet);
         this.append(this.instanceCountSnippet);
-
         this.workGroupSize = [1, 1, 1];
     }
 
@@ -171,7 +169,7 @@ fn PickDetph(aabb: vec4<f32>, texture: texture_2d<f32>, level: u32) -> f32
     return depth;
 }
 
-fn IsPassOcclusion(view_projection: { 1}, model: mat4x4<f32>, bounding_sphere: vec4<f32>) -> bool
+fn IsPassOcclusion(view_projection: ${this.viewProjectionSnippet.getStructName()}, model: mat4x4<f32>, bounding_sphere: vec4<f32>) -> bool
 {   
     let CLOSE_RANGE_NEAR_CAMERA: f32 = 4.0;
     let center = view_projection.view * model * vec4<f32>(bounding_sphere.xyz, 1.0);
@@ -188,7 +186,7 @@ fn IsPassOcclusion(view_projection: { 1}, model: mat4x4<f32>, bounding_sphere: v
     // - calc span in fullscreen, and pyramid level 0 is half.
     // - add extra 1 level.
     let aabb: vec4<f32> = ShpereAABB(view_projection.projection, center.xyz, r);
-    let aabb_level: u32 = AABBMipLevel(aabb, view.viewport_width, view.viewport_height);
+    let aabb_level: u32 = AABBMipLevel(aabb, ${this.viewSnippet.getVariableName()}.viewport_width, ${this.viewSnippet.getVariableName()}.viewport_height);
     let level: u32 = Clamp2MipLevels(aabb_level, ${this.hzbTextureSnippet.getVariableName()});
     let depth: f32 = PickDetph(aabb, ${this.hzbTextureSnippet.getVariableName()}, level);
     let linear_depth = LinearizeDepth(depth);
@@ -245,6 +243,10 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
         let index: u32 = atomicAdd(&${this.instanceCountSnippet.getVariableName()}, 1u);
         ${this.instanceOrderSnippet.getVariableName()}[index] = instance_id;
     }
+
+    /////////////////////////////////////DEBUG-START///////////////////////////////////////
+    ${this.debugSnippet.getVariableName()}[0].g = f32(instance_id);
+    /////////////////////////////////////DEBUG-END///////////////////////////////////////
 
 }
 

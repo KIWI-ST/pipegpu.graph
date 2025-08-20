@@ -34,7 +34,7 @@ const nanoEntry = async (
 ) => {
     const lng: number = 116.3975392;
     const lat: number = 39.916;
-    const alt: number = 0;
+    const alt: number = 100;
     const viewportWidth = 400;
     const viewportHeight = 400;
 
@@ -157,6 +157,7 @@ const nanoEntry = async (
     const debugHandler = async () => {
         const ab: ArrayBuffer = await debugBuffer.PullDataAsync() as ArrayBuffer;
         const f32 = new Float32Array(ab as ArrayBuffer);
+        console.warn(`[W] a: ${f32[0]}, b: ${f32[1]}, c: ${f32[2]}, d: ${f32[3]}, e: ${f32[4]}, f: ${f32[5]}, g: ${f32[6]}.`);
         console.log(f32);
     }
 
@@ -220,7 +221,7 @@ const nanoEntry = async (
                 entryPoint: 'fs_main'
             }),
             dispatch: dispatch,
-            uniforms: new Uniforms,
+            uniforms: new Uniforms(),
             colorAttachments: colorAttachments,
             depthStencilAttachment: depthClearAttachment
         };
@@ -285,6 +286,7 @@ const nanoEntry = async (
         const WGSLCode = depthCopyComponent.build();
         depthTexture.cursor(0);
         hzbTextureStorage.cursor(0);
+        hzbTexture.cursor(0);
         const dispatch = new ComputeProperty(
             Math.ceil(viewportWidth / depthCopyComponent.WorkGropuSizeX),
             Math.ceil(viewportWidth / depthCopyComponent.WorkGropuSizeY),
@@ -295,16 +297,12 @@ const nanoEntry = async (
             computeShader: compiler.createComputeShader({
                 code: WGSLCode, entryPoint: 'cp_main'
             }),
-            uniforms: new Uniforms,
+            uniforms: new Uniforms(),
             dispatch: dispatch
         };
         // 拷贝第 0 层 (texture view 0)到 texture_storage_2d 里
         desc.handler = (encoder: GPUCommandEncoder): void => {
-            const copySize: GPUExtent3DDict = {
-                width: viewportWidth,
-                height: viewportHeight,
-                depthOrArrayLayers: 1
-            };
+            const copySize: GPUExtent3DDict = { width: viewportWidth, height: viewportHeight, depthOrArrayLayers: 1 };
             const src: GPUTexelCopyTextureInfo = {
                 texture: hzbTextureStorage.getGpuTexture(),
                 mipLevel: 0,
@@ -356,8 +354,25 @@ const nanoEntry = async (
             const desc: ComputeHolderDesc = {
                 label: `download sampling: ${k}`,
                 computeShader: computeShader,
-                uniforms: new Uniforms,
+                uniforms: new Uniforms(),
                 dispatch: dispatch
+            };
+            // 拷贝第 destCursor 层 hzbTextureStorage 到 hzbTexture 里
+            desc.handler = (encoder: GPUCommandEncoder): void => {
+                const copySize: GPUExtent3DDict = { width: viewportWidth >> destCursor, height: viewportHeight >> destCursor, depthOrArrayLayers: 1 };
+                const src: GPUTexelCopyTextureInfo = {
+                    texture: hzbTextureStorage.getGpuTexture(),
+                    mipLevel: destCursor,
+                    origin: [0, 0, 0],
+                    aspect: 'all'
+                };
+                const dst: GPUTexelCopyTextureInfo = {
+                    texture: hzbTexture.getGpuTexture(),
+                    mipLevel: destCursor,
+                    origin: [0, 0, 0],
+                    aspect: 'all'
+                };
+                encoder.copyTextureToTexture(src, dst, copySize);
             };
             desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
             desc.uniforms?.assign(hzbTextureSnippet.getVariableName(), hzbTexture);
@@ -366,50 +381,54 @@ const nanoEntry = async (
         }
     }
 
-    // // 5. 实例剔除
-    // {
-    //     const instanceCullingComponent = new CullingInstanceComponent(
-    //         context,
-    //         compiler,
-    //         debugSnippet,
-    //         viewProjectionSnippet,
-    //         viewPlaneSnippet,
-    //         viewSnippet,
-    //         hzbTextureSnippet,
-    //         meshDescSnippet,
-    //         instanceDescSnippet,
-    //         instanceOrderSnippet,
-    //         instanceCountAtomicSnippet
-    //     );
-    //     hzbTexture.cursor(0);
-    //     const WGSLCode = instanceCullingComponent.build();
-    //     const dispatch: ComputeProperty = new ComputeProperty(
-    //         () => {
-    //             return Math.ceil(earthScene.MaxInstanceCount / instanceCullingComponent.WorkGropuSizeX);
-    //         },
-    //         1,
-    //         1
-    //     );
-    //     const desc: ComputeHolderDesc = {
-    //         label: 'instance culling.',
-    //         computeShader: compiler.createComputeShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'cp_main'
-    //         }),
-    //         uniforms: new Uniforms,
-    //         dispatch: dispatch
-    //     };
-    //     desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
-    //     desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), viewProjectionBuffer);
-    //     desc.uniforms?.assign(viewPlaneSnippet.getVariableName(), viewPlaneBuffer);
-    //     desc.uniforms?.assign(viewSnippet.getVariableName(), viewBuffer);
-    //     desc.uniforms?.assign(hzbTextureSnippet.getVariableName(), hzbTexture);
-    //     desc.uniforms?.assign(meshDescSnippet.getVariableName(), meshDescBuffer);
-    //     desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
-    //     desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), instanceOrderBuffer);
-    //     desc.uniforms?.assign(instanceCountAtomicSnippet.getVariableName(), instanceCountAtomicBuffer);
-    //     holders.push(compiler.compileComputeHolder(desc));
-    // }
+    // 5. 实例剔除
+    {
+        const instanceCullingComponent: CullingInstanceComponent = new CullingInstanceComponent(
+            context,
+            compiler,
+            debugSnippet,
+            viewProjectionSnippet,
+            viewPlaneSnippet,
+            viewSnippet,
+            hzbTextureSnippet,
+            meshDescSnippet,
+            instanceDescSnippet,
+            instanceOrderSnippet,
+            instanceCountAtomicSnippet
+        );
+        hzbTexture.cursor(0);
+        const WGSLCode = instanceCullingComponent.build();
+        const dispatch: ComputeProperty = new ComputeProperty(
+            () => {
+                if (earthScene.MaxInstanceCount) {
+                    return Math.ceil(earthScene.MaxInstanceCount / instanceCullingComponent.WorkGropuSizeX);
+                } else {
+                    return 1;
+                }
+            },
+            1,
+            1
+        );
+        const desc: ComputeHolderDesc = {
+            label: 'instance culling.',
+            computeShader: compiler.createComputeShader({
+                code: WGSLCode,
+                entryPoint: 'cp_main'
+            }),
+            uniforms: new Uniforms,
+            dispatch: dispatch
+        };
+        desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
+        desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), viewProjectionBuffer);
+        desc.uniforms?.assign(viewPlaneSnippet.getVariableName(), viewPlaneBuffer);
+        desc.uniforms?.assign(viewSnippet.getVariableName(), viewBuffer);
+        desc.uniforms?.assign(hzbTextureSnippet.getVariableName(), hzbTexture);
+        desc.uniforms?.assign(meshDescSnippet.getVariableName(), meshDescBuffer);
+        desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
+        desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), instanceOrderBuffer);
+        desc.uniforms?.assign(instanceCountAtomicSnippet.getVariableName(), instanceCountAtomicBuffer);
+        holders.push(compiler.compileComputeHolder(desc));
+    }
 
     // // 6. 簇剔除
     // {
@@ -562,6 +581,8 @@ const nanoEntry = async (
 
     // raf
     {
+        earthScene.forceUpdateSceneManager();
+
         // const graph: OrderedGraph = new OrderedGraph(context);
         const renderLoop = async () => {
             earthScene.updateSceneData();

@@ -43,6 +43,22 @@ type DrawIndexedIndirect = {
     first_instance: number,
 };
 
+/**
+ * @example
+ *  const earthScene: EarthScene = new EarthScene(
+ *     `http://10.11.11.34/BistroInterior_Wine/`,
+ *     SCENE_CAMERA,
+ *     viewportWidth,
+ *     viewportHeight,
+ *     context,
+ *     compiler,
+ *     {
+ *         lng: lng,
+ *         lat: lat,
+ *         alt: alt
+ *     }
+ *  );
+ */
 class EarthScene {
 
     private compiler: Compiler;
@@ -144,6 +160,7 @@ class EarthScene {
         const handler: Handle1D = () => {
             // cesium 默认是列主序
             let projectionData: number[] = [];
+
             // let projectionMatrix = new Cesium.Matrix4();
             // Cesium.Matrix4.transpose(this.syncCamera.frustum.projectionMatrix, projectionMatrix);
             // Cesium.Matrix4.toArray(projectionMatrix, projectionData);
