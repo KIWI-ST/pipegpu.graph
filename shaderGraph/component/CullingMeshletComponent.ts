@@ -306,11 +306,6 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
     let instance_index = global_index.x;
     let instance_num = atomicLoad(&${this.instanceCountSnippet.getVariableName()});
 
-    //////////////////////////////////////////
-    // ${this.debugSnippet.getVariableName()}[0].a = f32(atomicLoad(& ${this.meshletCountSnippet.getVariableName()}));
-    ${this.debugSnippet.getVariableName()}[0].b = f32 (instance_num); // f32(mesh.meshlet_count);
-    //////////////////////////////////////////
-
     if(instance_index >= instance_num) {
         return;
     }
@@ -328,13 +323,35 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
     let model: mat4x4<f32> = instance.model;
     let bounding_sphere: vec4<f32> = meshlet.self_bounding_sphere;
 
+    //////////////////////////////////////////
+    // ${this.debugSnippet.getVariableName()}[0].a = f32(atomicLoad(& ${this.meshletCountSnippet.getVariableName()}));
+    // if(IsPassFrustum(${this.viewPlaneSnippet.getVariableName()}, model, bounding_sphere)) {
+    //     ${this.debugSnippet.getVariableName()}[0].a = 112.0;
+    // } 
+    // else {
+    //     ${this.debugSnippet.getVariableName()}[0].a = -112.0;
+    // }
+    // if(IsPassOcclusion(${this.viewProjectionSnippet.getVariableName()}, model, bounding_sphere)) {
+    //     ${this.debugSnippet.getVariableName()}[0].b = 256.0;
+    // }
+    // else {
+    //     ${this.debugSnippet.getVariableName()}[0].b = -256.0;
+    // }
+    // if(IsPassBoundsError(${this.viewSnippet.getVariableName()}, meshlet)) {
+    //    ${this.debugSnippet.getVariableName()}[0].b = 512.0;
+    // }
+    // else {
+    //     ${this.debugSnippet.getVariableName()}[0].b = -512.0;
+    // }
+    // ${this.debugSnippet.getVariableName()}[0].b = f32 (instance_num); // f32(mesh.meshlet_count);
+    //////////////////////////////////////////
+
     if (IsPassFrustum(${this.viewPlaneSnippet.getVariableName()}, model, bounding_sphere) && IsPassOcclusion(${this.viewProjectionSnippet.getVariableName()}, model, bounding_sphere) && IsPassBoundsError(${this.viewSnippet.getVariableName()}, meshlet)) {
         let index: u32 = atomicAdd(&${this.meshletCountSnippet.getVariableName()}, 1u);
         ${this.runtimeMeshletMapSnippet.getVariableName()}[index] = vec2<u32>(instance_id, meshlet_id);
-        // vertex_count, instance_count, first_vertex, first_instance
         ${this.hardwareRasterizationIndirectSnippet.getVariableName()}[index] = ${this.hardwareRasterizationIndirectSnippet.getStructName()}(meshlet.index_count, 1, 0, index); 
     }
-
+    ${this.debugSnippet.getVariableName()}[0].a = f32(atomicLoad(&${this.meshletCountSnippet.getVariableName()}));
 
 }`;
 

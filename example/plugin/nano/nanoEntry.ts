@@ -525,70 +525,75 @@ const nanoEntry = async (
         holders.push(compiler.compileComputeHolder(desc));
     }
 
-    // // 7. 重置深度，使用 1.0
-    // {
-    //     const depthClearComnponet = new DepthClearComponent(
-    //         context,
-    //         compiler
-    //     );
-    //     const WGSLCode = depthClearComnponet.build();
-    //     console.warn(`[W] 步骤7, 重置深度:${WGSLCode}`);
-    //     const depthClearAttachment = depthClearComnponet.createClearDepthStencilAttachment(depthTexture);
-    //     const dispatch = new RenderProperty(6, 1);
-    //     const desc: RenderHolderDesc = {
-    //         label: 'clear component. reset to 1.0.',
-    //         vertexShader: compiler.createVertexShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'vs_main',
-    //         }),
-    //         fragmentShader: compiler.createFragmentShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'fs_main',
-    //         }),
-    //         dispatch: dispatch,
-    //         colorAttachments: [],
-    //         depthStencilAttachment: depthClearAttachment
-    //     };
-    //     holders.push(compiler.compileRenderHolder(desc));
-    // }
+    // 7. 重置深度，使用 1.0
+    {
+        const depthClearComnponet: DepthClearComponent = new DepthClearComponent(
+            context,
+            compiler,
+            debugSnippet
+        );
+        const WGSLCode = depthClearComnponet.build();
+        const depthClearAttachment = depthClearComnponet.getClearDepthStencilAttachment(depthTexture);
+        const dispatch = new RenderProperty(6, 1);
+        const desc: RenderHolderDesc = {
+            label: 'clear component. reset to 1.0.',
+            vertexShader: compiler.createVertexShader({
+                code: WGSLCode,
+                entryPoint: 'vs_main',
+            }),
+            fragmentShader: compiler.createFragmentShader({
+                code: WGSLCode,
+                entryPoint: 'fs_main',
+            }),
+            dispatch: dispatch,
+            colorAttachments: colorAttachments,
+            depthStencilAttachment: depthClearAttachment
+        };
+        holders.push(compiler.compileRenderHolder(desc));
+    }
 
-    // // 8. 硬件光栅化
-    // {
-    //     const hardwareRasterizationComponent = new HardwareRasterizationComponent(
-    //         context,
-    //         compiler,
-    //         debugSnippet,
-    //         fragmentSnippet,
-    //         viewProjectionSnippet,
-    //         meshDescSnippet,
-    //         meshletDescSnippet,
-    //         instanceDescSnippet,
-    //         vertexSnippet,
-    //         staticIndexedStorageSnippet,
-    //         runtimeMeshletMapSnippet,
-    //     );
-    //     const WGSLCode = hardwareRasterizationComponent.build();
-    //     const dispatch: RenderProperty = new RenderProperty(hardwareRasterizationIndirectBuffer, meshletCountAtomicBuffer, earthScene.MaxMeshletCount);
-    //     const desc: RenderHolderDesc = {
-    //         label: 'hardware rasterization.',
-    //         vertexShader: compiler.createVertexShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'vs_main',
-    //         }),
-    //         fragmentShader: compiler.createFragmentShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'fs_main',
-    //         }),
-    //         dispatch: dispatch,
-    //         colorAttachments: [visibilityColorAttachment],
-    //         depthStencilAttachment: depthStencilAttachment
-    //     };
-    //     desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
-    //     desc.uniforms?.assign(visibilityBufferSnippet.getVariableName(), visibilityBufferTexture);
-    //     desc.uniforms?.assign(viewSnippet.getVariableName(), viewBuffer);
-    //     desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
-    //     holders.push(compiler.compileRenderHolder(desc));
-    // }
+    // 8. 硬件光栅化
+    {
+        const hardwareRasterizationComponent: HardwareRasterizationComponent = new HardwareRasterizationComponent(
+            context,
+            compiler,
+            debugSnippet,
+            fragmentSnippet,
+            viewProjectionSnippet,
+            meshDescSnippet,
+            meshletDescSnippet,
+            instanceDescSnippet,
+            vertexSnippet,
+            staticIndexedStorageSnippet,
+            runtimeMeshletMapSnippet,
+        );
+        const WGSLCode = hardwareRasterizationComponent.build();
+        const dispatch: RenderProperty = new RenderProperty(hardwareRasterizationIndirectBuffer, meshletCountAtomicBuffer, earthScene.MaxMeshletCount);
+        const desc: RenderHolderDesc = {
+            label: 'hardware rasterization.',
+            vertexShader: compiler.createVertexShader({
+                code: WGSLCode,
+                entryPoint: 'vs_main',
+            }),
+            fragmentShader: compiler.createFragmentShader({
+                code: WGSLCode,
+                entryPoint: 'fs_main',
+            }),
+            uniforms: new Uniforms(),
+            dispatch: dispatch,
+            colorAttachments: [visibilityColorAttachment],
+            depthStencilAttachment: depthStencilAttachment
+        };
+        desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
+        desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), viewProjectionBuffer);
+        desc.uniforms?.assign(meshDescSnippet.getVariableName(), meshDescBuffer);
+        desc.uniforms?.assign(meshletDescSnippet.getVariableName(), meshletDescBuffer);
+        desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
+        desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
+        desc.uniforms?.assign(staticIndexedStorageSnippet.getVariableName(), staticIndexedStorageBuffer);
+        desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
+        holders.push(compiler.compileRenderHolder(desc));
+    }
 
     // // 9. visbility buffer 可视
     // {
@@ -625,24 +630,24 @@ const nanoEntry = async (
 
     // 10. 显示物件位置，辅助判断剔除结果是否正确
     {
-        const debugMeshletVisHolder = initMeshletVisShader(
-            context,
-            compiler,
-            earthScene,
-            colorAttachments,
-            depthStencilAttachment,
-            {
-                fragmentSnippet: fragmentSnippet,
-                vertexSnippet: vertexSnippet,
-                instanceDescSnippet: instanceDescSnippet,
-                viewProjectionSnippet: viewProjectionSnippet,
-                viewSnippet: viewSnippet,
-                meshDescSnippet: meshDescSnippet,
-                indexedStorageSnippet: staticIndexedStorageSnippet,
-                instanceOrderSnippet: instanceOrderSnippet
-            }
-        );
-        holders.push(debugMeshletVisHolder);
+        // const debugMeshletVisHolder = initMeshletVisShader(
+        //     context,
+        //     compiler,
+        //     earthScene,
+        //     colorAttachments,
+        //     depthStencilAttachment,
+        //     {
+        //         fragmentSnippet: fragmentSnippet,
+        //         vertexSnippet: vertexSnippet,
+        //         instanceDescSnippet: instanceDescSnippet,
+        //         viewProjectionSnippet: viewProjectionSnippet,
+        //         viewSnippet: viewSnippet,
+        //         meshDescSnippet: meshDescSnippet,
+        //         indexedStorageSnippet: staticIndexedStorageSnippet,
+        //         instanceOrderSnippet: instanceOrderSnippet
+        //     }
+        // );
+        // holders.push(debugMeshletVisHolder);
     }
 
     // raf

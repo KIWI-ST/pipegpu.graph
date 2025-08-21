@@ -14,17 +14,65 @@ import type { StorageVec2U32Snippet } from "../snippet/StorageVec2U32Snippet";
  * 
  */
 class HardwareRasterizationComponent extends RenderComponent {
-
+    /**
+     * 
+     */
     debugSnippet: DebugSnippet;
+
+    /**
+     * 
+     */
     fragmentDescSnippet: FragmentDescSnippet;
+
+    /**
+     * 
+     */
     viewProjectionSnippet: ViewProjectionSnippet;
+
+    /**
+     * 
+     */
     meshDescSnippet: MeshDescSnippet;
+
+    /**
+     * 
+     */
     meshletDescSnippet: MeshletDescSnippet;
+
+    /**
+     * 
+     */
     instanceDescSnippet: InstanceDescSnippet;
+
+    /**
+     * 
+     */
     vertexSnippet: VertexSnippet;
+
+    /**
+     * 
+     */
     indexedStorageSnippet: IndexedStorageSnippet;
+
+    /**
+     * 
+     */
     runtimeMeshletMapSnippet: StorageVec2U32Snippet;
 
+    /**
+     * 
+     * @param context 
+     * @param compiler 
+     * @param debugSnippet 
+     * @param fragmentDescSnippet 
+     * @param viewProjectionSnippet 
+     * @param meshDescSnippet 
+     * @param meshletDescSnippet 
+     * @param instanceDescSnippet 
+     * @param vertexSnippet 
+     * @param indexedStorageSnippet 
+     * @param runtimeMeshletMapSnippet 
+     */
     constructor(
         context: Context,
         compiler: Compiler,
@@ -39,7 +87,6 @@ class HardwareRasterizationComponent extends RenderComponent {
         runtimeMeshletMapSnippet: StorageVec2U32Snippet,
     ) {
         super(context, compiler);
-
         this.debugSnippet = debugSnippet;
         this.fragmentDescSnippet = fragmentDescSnippet;
         this.viewProjectionSnippet = viewProjectionSnippet;
@@ -49,7 +96,6 @@ class HardwareRasterizationComponent extends RenderComponent {
         this.vertexSnippet = vertexSnippet;
         this.indexedStorageSnippet = indexedStorageSnippet;
         this.runtimeMeshletMapSnippet = runtimeMeshletMapSnippet;
-
         this.append(this.debugSnippet);
         this.append(this.fragmentDescSnippet);
         this.append(this.viewProjectionSnippet);
@@ -91,10 +137,10 @@ fn vs_main(
     let vertex: ${this.vertexSnippet.getStructName()} = ${this.vertexSnippet.getVariableName()}[vertex_id];
     let vertex_position = vec4<f32>(vertex.px, vertex.py, vertex.pz, 1.0);
     let vertex_normal = vec3<f32>(vertex.nx, vertex.ny, vertex.nz);
-    let vertex_uv = vec2<f32>(vertex.u, vertex.v);
+    let vertex_uv = vec2<f32>(vertex.tx, vertex.ty);
     let normal_ws = model * vec4<f32>(vertex_normal, 0.0);
 
-    f.position = {7}.projection * {7}.view * model * vertex_position;
+    f.position = ${this.viewProjectionSnippet.getVariableName()}.projection * ${this.viewProjectionSnippet.getVariableName()}.view * model * vertex_position;
 
     //f.position_ws = model * vertex_position;
     //f.normal_ws = normalize(normal_ws.xyz);
@@ -113,7 +159,7 @@ fn vs_main(
 }
 
 @fragment
-fn fs_main(f: {1}) -> @location(0) u32 {
+fn fs_main(f: ${this.fragmentDescSnippet.getStructName()}) -> @location(0) u32 {
     // bitcast<u32>( f.position.z / f.position.w), 
     return f.pack_id;
 }
