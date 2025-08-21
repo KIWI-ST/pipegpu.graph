@@ -82,7 +82,7 @@ fn cp_main(@builtin(global_invocation_id) global_id: vec3<u32>)
     textureStore(${this.textureStorage2DSnippet.getVariableName()}, global_id.xy, color4);
 
     /////////////////////////////////////DEBUG-START///////////////////////////////////////
-    ${this.debugSnippet.getVariableName()}[0].e = textureLoad(${this.texture2DSnippet.getVariableName()}, vec2<u32>(0, 0), 0).r;
+    // ${this.debugSnippet.getVariableName()}[0].e = textureLoad(${this.texture2DSnippet.getVariableName()}, vec2<u32>(0, 0), 0).r;
     /////////////////////////////////////DEBUG-END///////////////////////////////////////
 }
         

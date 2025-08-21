@@ -449,23 +449,32 @@ class EarthScene {
                 let meshDesc: MeshDesc | undefined = this.meshDescQueue.shift();
                 while (meshDesc) {
                     const buffer = new ArrayBuffer(32);
-                    const f32view = new Float32Array(buffer, 0, 4);
-                    const u32View = new Float32Array(buffer, f32view.byteLength, 4);
-                    f32view.set([
+                    const boundSphereView = new Float32Array(buffer, 0, 4);
+                    const vertexOffsetView = new Uint32Array(buffer, 16, 1);
+                    const meshIDView = new Uint32Array(buffer, 20, 1);
+                    const meshletCountView = new Uint32Array(buffer, 24, 1);
+                    const materialIDView = new Uint32Array(buffer, 28, 1);
+                    boundSphereView.set([
                         meshDesc.bounding_sphere.cx,
                         meshDesc.bounding_sphere.cy,
                         meshDesc.bounding_sphere.cz,
                         meshDesc.bounding_sphere.r
                     ]);
-                    u32View.set([
+                    vertexOffsetView.set([
                         meshDesc.vertex_offset,
-                        meshDesc.mesh_id,
-                        meshDesc.meshlet_count,
-                        meshDesc.material_id
                     ]);
+                    meshIDView.set([
+                        meshDesc.mesh_id,
+                    ]);
+                    meshletCountView.set([
+                        meshDesc.meshlet_count,
+                    ]);
+                    materialIDView.set([
+                        meshDesc.material_id
+                    ])
                     details.push({
                         byteLength: 32,
-                        offset: this.sceneInstanceDescBufferOffset,
+                        offset: this.sceneMeshDescBufferOffset,
                         rawData: buffer,
                     });
                     this.sceneMeshDescBufferOffset += buffer.byteLength;
@@ -644,6 +653,13 @@ class EarthScene {
         });
     }
 
+    private initHardwareRasterizationIndirectBuffer = () => {
+        // indirect buffer align byte size = 4 * 4
+        this.hardwareRasterizationIndirectBuffer = this.compiler.createIndirectBuffer({
+            totalByteLength: 2560 * 1440 * 4 * 4
+        });
+    }
+
     private initGpuBuffers = () => {
         this.initViewPorjectionBuffer();
         this.initViewPlaneBuffer();
@@ -657,6 +673,7 @@ class EarthScene {
         this.initIndexedStorageStaticBuffer();
         this.initIndexedStorageRuntimeBuffer();
         this.initIndirectDrawCountBuffer();
+        this.initHardwareRasterizationIndirectBuffer();
     }
 
     private statsMeshletIndicesNum = (meshDataPack: MeshDataPack) => {

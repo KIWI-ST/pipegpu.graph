@@ -84,11 +84,11 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
 
     /////////////////////////////////////DEBUG-START///////////////////////////////////////
     ///// f32(atomicLoad(&${this.triangleCountSnippet.getVariableName()}));
-    ${this.debugSnippet.getVariableName()}[0].a = f32(visbility_viewprot_xyz.x);
-    ${this.debugSnippet.getVariableName()}[0].b = f32(visbility_viewprot_xyz.y);
-    ${this.debugSnippet.getVariableName()}[0].c = f32(global_index.x);
-    ${this.debugSnippet.getVariableName()}[0].d = f32(global_index.y);
-    ${this.debugSnippet.getVariableName()}[0].e = f32(pack_id);
+    // ${this.debugSnippet.getVariableName()}[0].a = f32(visbility_viewprot_xyz.x);
+    // ${this.debugSnippet.getVariableName()}[0].b = f32(visbility_viewprot_xyz.y);
+    // ${this.debugSnippet.getVariableName()}[0].c = f32(global_index.x);
+    // ${this.debugSnippet.getVariableName()}[0].d = f32(global_index.y);
+    // ${this.debugSnippet.getVariableName()}[0].e = f32(pack_id);
     /////////////////////////////////////DEBUG-END///////////////////////////////////////
 
     // missing cached runtime triangle

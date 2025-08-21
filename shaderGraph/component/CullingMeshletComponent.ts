@@ -14,21 +14,74 @@ import type { StorageAtomicU32Snippet } from "../snippet/StorageAtomicU32Snippet
 import type { StorageVec2U32Snippet } from "../snippet/StorageVec2U32Snippet";
 import type { IndirectSnippet } from "../snippet/IndirectSnippet";
 
+/**
+ * 
+ */
 class CullingMeshletComponent extends ComputeComponent {
-
+    /**
+     * 
+     */
     debugSnippet: DebugSnippet;
+
+    /**
+     * 
+     */
     viewProjectionSnippet: ViewProjectionSnippet;
+
+    /**
+     * 
+     */
     viewPlaneSnippet: ViewPlaneSnippet;
+
+    /**
+     * 
+     */
     viewSnippet: ViewSnippet;
+
+    /**
+     * 
+     */
     hzbTextureSnippet: Texture2DSnippet;
+
+    /**
+     * 
+     */
     meshDescSnippet: MeshDescSnippet;
+
+    /**
+     * 
+     */
     meshletDescSnippet: MeshletDescSnippet;
+
+    /**
+     * 
+     */
     instanceDescSnippet: InstanceDescSnippet;
+
+    /**
+     * 
+     */
     instanceOrderSnippet: StorageArrayU32Snippet;
+
+    /**
+     * 
+     */
     instanceCountSnippet: StorageU32Snippet;
+
+    /**
+     * 
+     */
     meshletCountSnippet: StorageAtomicU32Snippet;
+
+    /**
+     * 
+     */
     runtimeMeshletMapSnippet: StorageVec2U32Snippet;
-    indirectSnippet: IndirectSnippet;
+
+    /**
+     * 
+     */
+    hardwareRasterizationIndirectSnippet: IndirectSnippet;
 
     constructor(
         context: Context,
@@ -45,10 +98,9 @@ class CullingMeshletComponent extends ComputeComponent {
         instanceCountSnippet: StorageU32Snippet,
         meshletCountSnippet: StorageAtomicU32Snippet,
         runtimeMeshletMapSnippet: StorageVec2U32Snippet,
-        indirectSnippet: IndirectSnippet
+        hardwareRasterizationIndirectSnippet: IndirectSnippet
     ) {
         super(context, compiler);
-
         this.debugSnippet = debugSnippet;
         this.viewProjectionSnippet = viewProjectionSnippet;
         this.viewPlaneSnippet = viewPlaneSnippet;
@@ -61,8 +113,7 @@ class CullingMeshletComponent extends ComputeComponent {
         this.instanceCountSnippet = instanceCountSnippet;
         this.meshletCountSnippet = meshletCountSnippet;
         this.runtimeMeshletMapSnippet = runtimeMeshletMapSnippet;
-        this.indirectSnippet = indirectSnippet;
-
+        this.hardwareRasterizationIndirectSnippet = hardwareRasterizationIndirectSnippet;
         this.append(this.debugSnippet);
         this.append(this.viewProjectionSnippet);
         this.append(this.viewPlaneSnippet);
@@ -72,10 +123,10 @@ class CullingMeshletComponent extends ComputeComponent {
         this.append(this.meshletDescSnippet);
         this.append(this.instanceDescSnippet);
         this.append(this.instanceOrderSnippet);
+        this.append(this.instanceCountSnippet);
         this.append(this.meshletCountSnippet);
         this.append(this.runtimeMeshletMapSnippet);
-        this.append(this.indirectSnippet);
-
+        this.append(this.hardwareRasterizationIndirectSnippet);
         this.workGroupSize = [1, 1, 1];
     }
 
@@ -84,7 +135,7 @@ class CullingMeshletComponent extends ComputeComponent {
         
 fn IsPassBoundsError(view: ${this.viewSnippet.getStructName()}, meshlet: ${this.meshletDescSnippet.getStructName()}) ->bool
 {
-    let camera_position: vec4<f32> = view.camera_position;
+    let camera_position: vec3<f32> = vec3<f32>(view.camera_position_x, view.camera_position_y, view.camera_position_z); 
     let factor: f32 = view.camera_vertical_scaling_factor * 0.5;
     let znear: f32 = view.near_plane;
     let threshold: f32 = view.pixel_threshold;
@@ -127,10 +178,11 @@ fn IsPassBoundsError(view: ${this.viewSnippet.getStructName()}, meshlet: ${this.
 
 fn IsPassFrustum(planes: array<vec4<f32>, 6>, model: mat4x4<f32>, bounding_sphere: vec4<f32>) ->bool
 {
-    let r: f32 = bounding_sphere.w;
+    let s: f32 = max(max(abs(model[0][0]), abs(model[1][1])), abs(model[2][2]));
+    let r: f32 = bounding_sphere.w * s;
     let c: vec4<f32> = model * vec4<f32>(bounding_sphere.xyz, 1.0);
-    for(var k = 0; k < 6; k++) {
-        if(dot(c, planes[k]) < -r) {
+    for(var k = 0; k < 6; k ++) {
+        if(dot(c, planes[k]) > r) {
             return false;
         }
     }
@@ -230,7 +282,7 @@ fn IsPassOcclusion(view_projection: ${this.viewProjectionSnippet.getStructName()
     // - calc span in fullscreen, and pyramid level 0 is half.
     // - add extra 1 level.
     let aabb: vec4<f32> = ShpereAABB(view_projection.projection, center.xyz, r);
-    let aabb_level: u32 = AABBMipLevel(aabb, view.viewport_width, view.viewport_height);
+    let aabb_level: u32 = AABBMipLevel(aabb, ${this.viewSnippet.getVariableName()}.viewport_width, ${this.viewSnippet.getVariableName()}.viewport_height);
     let level: u32 = Clamp2MipLevels(aabb_level, ${this.hzbTextureSnippet.getVariableName()});
 
     let depth: f32 = PickDetph(aabb, ${this.hzbTextureSnippet.getVariableName()}, level);
@@ -252,7 +304,14 @@ fn IsPassOcclusion(view_projection: ${this.viewProjectionSnippet.getStructName()
 fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
 {
     let instance_index = global_index.x;
-    if(instance_index >= ${this.instanceCountSnippet.getVariableName()}) {
+    let instance_num = atomicLoad(&${this.instanceCountSnippet.getVariableName()});
+
+    //////////////////////////////////////////
+    // ${this.debugSnippet.getVariableName()}[0].a = f32(atomicLoad(& ${this.meshletCountSnippet.getVariableName()}));
+    ${this.debugSnippet.getVariableName()}[0].b = f32 (instance_num); // f32(mesh.meshlet_count);
+    //////////////////////////////////////////
+
+    if(instance_index >= instance_num) {
         return;
     }
 
@@ -273,13 +332,10 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
         let index: u32 = atomicAdd(&${this.meshletCountSnippet.getVariableName()}, 1u);
         ${this.runtimeMeshletMapSnippet.getVariableName()}[index] = vec2<u32>(instance_id, meshlet_id);
         // vertex_count, instance_count, first_vertex, first_instance
-        ${this.indirectSnippet.getVariableName()} [index] = ${this.indirectSnippet.getStructName()}(meshlet.index_count, 1, 0, index); 
+        ${this.hardwareRasterizationIndirectSnippet.getVariableName()}[index] = ${this.hardwareRasterizationIndirectSnippet.getStructName()}(meshlet.index_count, 1, 0, index); 
     }
 
-    //////////////////////////////////////////
-    ${this.debugSnippet.getVariableName()}.instance_count = u32(atomicLoad(& ${this.meshletCountSnippet.getVariableName()}));
-    ${this.debugSnippet.getVariableName()}.total_instance_count = mesh.meshlet_count;
-    //////////////////////////////////////////
+
 }`;
 
         return wgslCode;

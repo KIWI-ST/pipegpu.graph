@@ -62,7 +62,7 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4<f
 fn fs_main(@builtin(position) f: vec4<f32>) -> @location(0) vec4<f32> {
 
     /////////////////////////////////////DEBUG-START///////////////////////////////////////
-    ${this.debugSnippet.getVariableName()}[0].b = f.z;
+    // ${this.debugSnippet.getVariableName()}[0].b = f.z;
     /////////////////////////////////////DEBUG-END///////////////////////////////////////
 
     return vec4<f32>(0.0, 0.0, 0.0, 0.0);

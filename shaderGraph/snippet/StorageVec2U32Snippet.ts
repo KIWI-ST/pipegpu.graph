@@ -32,12 +32,12 @@ class StorageVec2U32Snippet extends BaseSnippet {
         this.shaderCode.variableName = `storage_vec2_u32_arr_${this.snippetStatsID}`;
 
         switch (_shaderCodeFormat) {
-            case 'computer':
+            case 'renderer':
                 this.shaderCode.variableCode = `
 @group(${_groupIndex}) @binding(${_bindingIndex}) var<storage, read> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
                 `;
                 break;
-            case 'renderer':
+            case 'computer':
                 this.shaderCode.variableCode = `
 @group(${_groupIndex}) @binding(${_bindingIndex}) var<storage, read_write> ${this.shaderCode.variableName}: array<${this.shaderCode.structName}>;
                 `;

@@ -28,6 +28,7 @@ import { DebugSnippet } from '../../../shaderGraph/snippet/DebugSnippet';
 import { MeshletDescSnippet } from '../../../shaderGraph/snippet/MeshletSnippet';
 import { EarthScene } from './EarthScene';
 import { VisibilityBuffertVisComponent } from '../../../shaderGraph/component/VisibilityBuffertVisComponent';
+import { initMeshletVisShader } from './shader/meshletVisShader';
 
 const nanoEntry = async (
     SCENE_CAMERA: Cesium.Camera
@@ -153,12 +154,16 @@ const nanoEntry = async (
 
     const holders: BaseHolder[] = [];
 
+
     // debug
+    let debugFrameCount = 0;
     const debugHandler = async () => {
         const ab: ArrayBuffer = await debugBuffer.PullDataAsync() as ArrayBuffer;
         const f32 = new Float32Array(ab as ArrayBuffer);
-        console.warn(`[W] a: ${f32[0]}, b: ${f32[1]}, c: ${f32[2]}, d: ${f32[3]}, e: ${f32[4]}, f: ${f32[5]}, g: ${f32[6]}.`);
-        console.log(f32);
+        if (debugFrameCount++ % 60 === 0) {
+            // console.log(f32);
+            console.warn(`[W] a: ${f32[0]}, b: ${f32[1]}, c: ${f32[2]}, d: ${f32[3]}, e: ${f32[4]}, f: ${f32[5]}, g: ${f32[6]}.`);
+        }
     }
 
     // 0. 重值运行时计数器
@@ -442,7 +447,7 @@ const nanoEntry = async (
                 code: WGSLCode,
                 entryPoint: 'cp_main'
             }),
-            uniforms: new Uniforms,
+            uniforms: new Uniforms(),
             dispatch: dispatch
         };
         desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
@@ -457,56 +462,68 @@ const nanoEntry = async (
         holders.push(compiler.compileComputeHolder(desc));
     }
 
-    // // 6. 簇剔除
-    // {
-    //     const meshletCullingComponent = new CullingMeshletComponent(
-    //         context,
-    //         compiler,
-    //         debugSnippet,
-    //         viewProjectionSnippet,
-    //         viewPlaneSnippet,
-    //         viewSnippet,
-    //         hzbTextureSnippet,
-    //         meshDescSnippet,
-    //         meshletDescSnippet,
-    //         instanceDescSnippet,
-    //         instanceOrderSnippet,
-    //         instanceCountAtomicSnippet,
-    //         meshletCountAtomicSnippet,
-    //         runtimeMeshletMapSnippet,
-    //         hardwareRasterizationIndirectSnippet
-    //     );
-    //     hzbTexture.cursor(0);
-    //     const WGSLCode = meshletCullingComponent.build();
-    //     const dispatch: ComputeProperty = new ComputeProperty(
-    //         earthScene.MaxInstanceCount / meshletCullingComponent.WorkGropuSizeX,
-    //         earthScene.MaxMeshletCount / meshletCullingComponent.WorkGropuSizeY,
-    //         1
-    //     );
-    //     const desc: ComputeHolderDesc = {
-    //         label: 'meshlet culling.',
-    //         computeShader: compiler.createComputeShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'cp_main',
-    //         }),
-    //         uniforms: new Uniforms,
-    //         dispatch: dispatch
-    //     };
-    //     desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
-    //     desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), viewProjectionBuffer);
-    //     desc.uniforms?.assign(viewPlaneSnippet.getVariableName(), viewPlaneBuffer);
-    //     desc.uniforms?.assign(viewPlaneSnippet.getVariableName(), viewBuffer);
-    //     desc.uniforms?.assign(hzbTextureSnippet.getVariableName(), hzbTexture);
-    //     desc.uniforms?.assign(meshDescSnippet.getVariableName(), meshDescBuffer);
-    //     desc.uniforms?.assign(meshletDescSnippet.getVariableName(), meshletDescBuffer);
-    //     desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
-    //     desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), instanceOrderBuffer);
-    //     desc.uniforms?.assign(instanceCountAtomicSnippet.getVariableName(), instanceCountAtomicBuffer);
-    //     desc.uniforms?.assign(meshletCountAtomicSnippet.getVariableName(), meshletCountAtomicBuffer);
-    //     desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
-    //     desc.uniforms?.assign(hardwareRasterizationIndirectSnippet.getVariableName(), hardwareRasterizationIndirectBuffer);
-    //     holders.push(compiler.compileComputeHolder(desc));
-    // }
+    // 6. 簇剔除
+    {
+        const meshletCullingComponent: CullingMeshletComponent = new CullingMeshletComponent(
+            context,
+            compiler,
+            debugSnippet,
+            viewProjectionSnippet,
+            viewPlaneSnippet,
+            viewSnippet,
+            hzbTextureSnippet,
+            meshDescSnippet,
+            meshletDescSnippet,
+            instanceDescSnippet,
+            instanceOrderSnippet,
+            instanceCountAtomicSnippet,
+            meshletCountAtomicSnippet,
+            runtimeMeshletMapSnippet,
+            hardwareRasterizationIndirectSnippet
+        );
+        hzbTexture.cursor(0);
+        const WGSLCode = meshletCullingComponent.build();
+        const dispatch: ComputeProperty = new ComputeProperty(
+            () => {
+                if (earthScene.MaxInstanceCount) {
+                    return Math.ceil(earthScene.MaxInstanceCount / meshletCullingComponent.WorkGropuSizeX);
+                } else {
+                    return 1;
+                }
+            },
+            () => {
+                if (earthScene.MaxMeshletCount) {
+                    return Math.ceil(earthScene.MaxMeshletCount / meshletCullingComponent.WorkGropuSizeY);
+                } else {
+                    return 1;
+                }
+            },
+            1
+        );
+        const desc: ComputeHolderDesc = {
+            label: 'meshlet culling.',
+            computeShader: compiler.createComputeShader({
+                code: WGSLCode,
+                entryPoint: 'cp_main',
+            }),
+            uniforms: new Uniforms(),
+            dispatch: dispatch,
+        };
+        desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
+        desc.uniforms?.assign(viewProjectionSnippet.getVariableName(), viewProjectionBuffer);
+        desc.uniforms?.assign(viewPlaneSnippet.getVariableName(), viewPlaneBuffer);
+        desc.uniforms?.assign(viewSnippet.getVariableName(), viewBuffer);
+        desc.uniforms?.assign(hzbTextureSnippet.getVariableName(), hzbTexture);
+        desc.uniforms?.assign(meshDescSnippet.getVariableName(), meshDescBuffer);
+        desc.uniforms?.assign(meshletDescSnippet.getVariableName(), meshletDescBuffer);
+        desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
+        desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), instanceOrderBuffer);
+        desc.uniforms?.assign(instanceCountAtomicSnippet.getVariableName(), instanceCountAtomicBuffer);
+        desc.uniforms?.assign(meshletCountAtomicSnippet.getVariableName(), meshletCountAtomicBuffer);
+        desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
+        desc.uniforms?.assign(hardwareRasterizationIndirectSnippet.getVariableName(), hardwareRasterizationIndirectBuffer);
+        holders.push(compiler.compileComputeHolder(desc));
+    }
 
     // // 7. 重置深度，使用 1.0
     // {
@@ -605,6 +622,28 @@ const nanoEntry = async (
     //     desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
     //     holders.push(compiler.compileRenderHolder(desc));
     // }
+
+    // 10. 显示物件位置，辅助判断剔除结果是否正确
+    {
+        const debugMeshletVisHolder = initMeshletVisShader(
+            context,
+            compiler,
+            earthScene,
+            colorAttachments,
+            depthStencilAttachment,
+            {
+                fragmentSnippet: fragmentSnippet,
+                vertexSnippet: vertexSnippet,
+                instanceDescSnippet: instanceDescSnippet,
+                viewProjectionSnippet: viewProjectionSnippet,
+                viewSnippet: viewSnippet,
+                meshDescSnippet: meshDescSnippet,
+                indexedStorageSnippet: staticIndexedStorageSnippet,
+                instanceOrderSnippet: instanceOrderSnippet
+            }
+        );
+        holders.push(debugMeshletVisHolder);
+    }
 
     // raf
     {

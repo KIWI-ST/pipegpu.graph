@@ -12,6 +12,10 @@ import type { StorageAtomicU32Snippet } from "../snippet/StorageAtomicU32Snippet
 
 /**
  * 
+ * instance culling:
+ * - mesh frustum culling
+ * - mesh occlusion culling
+ * 
  */
 class CullingInstanceComponent extends ComputeComponent {
     /**
@@ -73,7 +77,6 @@ class CullingInstanceComponent extends ComputeComponent {
         instanceCountSnippet: StorageAtomicU32Snippet
     ) {
         super(context, compiler);
-
         this.debugSnippet = debugSnippet;
         this.viewProjectionSnippet = viewProjectionSnippet;
         this.viewPlaneSnippet = viewPlaneSnippet;
@@ -203,10 +206,21 @@ fn IsPassOcclusion(view_projection: ${this.viewProjectionSnippet.getStructName()
 
 fn IsPassFrustum(planes: array<vec4<f32>, 6>, model: mat4x4<f32>, bounding_sphere: vec4<f32>) ->bool
 {
-    let r: f32 = bounding_sphere.w;
+    /////////////////////////////////////DEBUG-START///////////////////////////////////////
+    // ${this.debugSnippet.getVariableName()}[0].b = f32(bounding_sphere.w);
+    // ${this.debugSnippet.getVariableName()}[0].b = f32(instance.model[0][0]);
+    // ${this.debugSnippet.getVariableName()}[0].b = model[0][0]; // planes[0].x;
+    // ${this.debugSnippet.getVariableName()}[0].c = model[1][1]; // planes[0].y;
+    // ${this.debugSnippet.getVariableName()}[0].d = model[2][2]; //planes[0].z;
+    // ${this.debugSnippet.getVariableName()}[0].e = planes[0].w;
+    // ${this.debugSnippet.getVariableName()}[0].g = f32(${this.meshDescSnippet.getVariableName()}[mesh_id].bounding_sphere.w);
+    /////////////////////////////////////DEBUG-END////////////////////////////////////////
+
+    let s: f32 = max(max(abs(model[0][0]), abs(model[1][1])), abs(model[2][2]));
+    let r: f32 = bounding_sphere.w * s;
     let c: vec4<f32> = model * vec4<f32>(bounding_sphere.xyz, 1.0);
-    for(var k = 0; k < 6; k++) {
-        if(dot(c, planes[k]) < -r) {
+    for(var k = 0; k < 6; k ++) {
+        if(dot(c, planes[k]) > r) {
             return false;
         }
     }
@@ -239,18 +253,21 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
     let model: mat4x4<f32> = instance.model;
     let bounding_sphere: vec4<f32> = mesh.bounding_sphere;
 
-    // DEBUG::
-    let index: u32 = atomicAdd(&${this.instanceCountSnippet.getVariableName()}, 1u);
-    ${this.instanceOrderSnippet.getVariableName()}[index] = instance_id;
-
     // REAL::
-    // if(IsPassFrustum(${this.viewPlaneSnippet.getVariableName()}, model, bounding_sphere) && IsPassOcclusion(${this.viewProjectionSnippet.getVariableName()}, model, bounding_sphere)) {
-    //     let index: u32 = atomicAdd(&${this.instanceCountSnippet.getVariableName()}, 1u);
-    //     ${this.instanceOrderSnippet.getVariableName()}[index] = instance_id;
-    // }
+    if(IsPassFrustum(${this.viewPlaneSnippet.getVariableName()}, model, bounding_sphere) && IsPassOcclusion(${this.viewProjectionSnippet.getVariableName()}, model, bounding_sphere)) {
+        let index: u32 = atomicAdd(&${this.instanceCountSnippet.getVariableName()}, 1u);
+        ${this.instanceOrderSnippet.getVariableName()}[index] = instance_id;
+    }
 
     /////////////////////////////////////DEBUG-START///////////////////////////////////////
-    ${this.debugSnippet.getVariableName()}[0].a = f32(atomicLoad(&${this.instanceCountSnippet.getVariableName()}));
+    // ${this.debugSnippet.getVariableName()}[0].a = f32(mesh_id);    // bounding_sphere.x;
+    // ${this.debugSnippet.getVariableName()}[0].b = f32(instance.model[0][0]);
+    // ${this.debugSnippet.getVariableName()}[0].c = f32(${this.meshDescSnippet.getVariableName()}[mesh_id].meshlet_count);
+    // ${this.debugSnippet.getVariableName()}[0].d = f32(${this.meshDescSnippet.getVariableName()}[1].bounding_sphere.x);
+    // ${this.debugSnippet.getVariableName()}[0].e = f32(${this.meshDescSnippet.getVariableName()}[1].bounding_sphere.y);
+    // ${this.debugSnippet.getVariableName()}[0].f = f32(${this.meshDescSnippet.getVariableName()}[1].bounding_sphere.z);
+    // ${this.debugSnippet.getVariableName()}[0].g = f32(${this.meshDescSnippet.getVariableName()}[1].bounding_sphere.w);
+    // ${this.debugSnippet.getVariableName()}[0].a = f32(atomicLoad(&${this.instanceCountSnippet.getVariableName()}));
     /////////////////////////////////////DEBUG-END///////////////////////////////////////
 
 }

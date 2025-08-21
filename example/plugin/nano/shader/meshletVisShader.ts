@@ -26,9 +26,9 @@ const initMeshletVisShader = (
         indexedStorageSnippet: IndexedStorageSnippet,
         instanceOrderSnippet: StorageArrayU32Snippet
     }
-): RenderHolder | undefined => {
+): RenderHolder => {
     const dispatch: RenderProperty = new RenderProperty(
-        earthScene.IndexedStoragebuffer,
+        earthScene.StaticIndexedStorageBuffer,
         earthScene.IndexedIndirectBuffer,
         earthScene.IndirectDrawCountBuffer,
         () => {
@@ -79,7 +79,7 @@ const initMeshletVisShader = (
 
     earthScene.forceUpdateSceneManager();
 
-    const holder: RenderHolder | undefined = compiler.compileRenderHolder(desc);
+    const holder: RenderHolder = compiler.compileRenderHolder(desc);
     return holder;
 }
 
