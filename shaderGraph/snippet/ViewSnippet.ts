@@ -5,22 +5,6 @@ import { type Handle1D } from "pipegpu/src/res/buffer/BaseBuffer";
 /**
  * 
  */
-interface IVIEW {
-    cameraPositionX: number,
-    cameraPositionY: number,
-    cameraPositionZ: number,
-    cameraVerticalScalingFactor: number,
-    viewportWidth: number,
-    viewportHeight: number,
-    nearPlane: number,
-    farPlane: number,
-    pixelThreshold: number,
-    softwareRasterizerThreshold: number
-}
-
-/**
- * 
- */
 class ViewSnippet extends BaseSnippet {
     /**
      * 
@@ -99,6 +83,5 @@ struct ${this.shaderCode.structName}
 }
 
 export {
-    type IVIEW,
     ViewSnippet
 }

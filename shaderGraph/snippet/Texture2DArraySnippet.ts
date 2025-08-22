@@ -15,18 +15,18 @@ class Texture2DArraySnippet extends BaseSnippet {
 
     /**
      * 
-     * @param groupIndex 
-     * @param bindingIndex 
+     * @param _groupIndex 
+     * @param _bindingIndex 
      * @param shaderCodeFormat 
      * @returns 
      */
-    override initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode {
+    override initShaderCode(_groupIndex: number, _bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
 
         this.shaderCode.structName = `texture_2d_array<f32>`;
         this.shaderCode.variableName = `texture_2d_arr_${this.snippetStatsID}`;
         this.shaderCode.variableCode = `
         
-@group(${groupIndex}) @binding(${bindingIndex}) var ${this.shaderCode.variableName}: ${this.shaderCode.structName};
+@group(${_groupIndex}) @binding(${_bindingIndex}) var ${this.shaderCode.variableName}: ${this.shaderCode.structName};
 
         `;
 

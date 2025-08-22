@@ -35,7 +35,7 @@ npm install pipegpu.graph --save-dev
 
 ### shader graph
 - [x] BaseSnippet
-- [ ] Component
+- [x] BaseComponent
 - [ ] DepthClearComponent 
 - [ ] DepthCopyComponent
 - [ ] DownSamplingComponent
@@ -48,27 +48,28 @@ npm install pipegpu.graph --save-dev
 - [x] DebugSnippet 
 - [x] DepthTextureSnippet 
 - [x] FragmentDescSnippet 
-- [ ] IndexedIndirectSnippet 
-- [ ] IndirectSnippet 
+- [x] IndexedIndirectSnippet 
+- [x] IndexedStorageSnippet
+- [x] IndirectSnippet 
 - [x] InstanceDescSnippet 
-- [ ] MaterialPBRSnippet 
+- [ ] MaterialDescSnippet 
 - [x] MaterialPhongSnippet 
 - [x] MeshDescSnippet 
-- [ ] MeshletSnippet 
-- [ ] PointLightSnippet 
-- [ ] StorageArrayAtomicU32Snippet 
+- [x] MeshletSnippet 
+- [x] PointLightSnippet 
+- [x] StorageArrayAtomicU32Snippet 
 - [x] StorageArrayU32Snippet 
-- [ ] StorageAtomicU32Snippet 
-- [ ] StorageI32Snippet 
-- [ ] StorageIndexSnippet 
-- [ ] StorageU32Snippet 
-- [ ] StorageVec2U32Snippet 
-- [ ] Texture2DArraySnippet 
-- [ ] Texture2DSnippet 
-- [ ] TextureSamplerSnippet 
-- [ ] TextureStorage2DSnippet 
+- [x] StorageAtomicU32Snippet 
+- [x] StorageI32Snippet 
+- [x] StorageIndexSnippet 
+- [x] StorageU32Snippet 
+- [x] StorageVec2U32Snippet 
+- [x] Texture2DArraySnippet 
+- [x] Texture2DSnippet 
+- [x] TextureSamplerSnippet 
+- [x] TextureStorage2DR32FSnippet 
 - [x] VertexSnippet 
-- [ ] ViewPlaneSnippet 
+- [x] ViewPlaneSnippet 
 - [x] ViewProjectionSnippet 
 - [x] ViewSnippet 
-- [ ] VisibilityBufferSnippet
+- [x] VisibilityBufferSnippet

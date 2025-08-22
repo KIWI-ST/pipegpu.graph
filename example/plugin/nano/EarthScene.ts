@@ -1,13 +1,13 @@
 import * as Cesium from 'cesium';
 
-import { Mat4, Vec4 } from "pipegpu.matrix";
+import { Mat4, Vec4, Vec3 } from "pipegpu.matrix";
 import { fetchHDMF, type BoundingSphere, type MaterialType, type MeshDataPack } from "../../util/fetchHDMF";
 import { EarthManager } from "./EarthManager";
 import { fetchJSON, type Instance, type InstanceDataPack } from "../../util/fetchJSON";
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from "../../util/fetchKTX";
 import { webMercatorTileSchema } from "./earth/QuadtreeTileSchema";
 import { WGS84 } from "./earth/Ellipsoid";
-import type { Compiler, Context, IndexedIndirectBuffer, StorageBuffer, UniformBuffer, UniformHandle } from "pipegpu";
+import type { Compiler, Context, IndexedIndirectBuffer, IndirectBuffer, StorageBuffer, UniformBuffer } from "pipegpu";
 import type { IndexedStorageBuffer } from "pipegpu/src/res/buffer/IndexedStorageBuffer";
 import type { Handle1D, Handle2D, HandleDetail } from "pipegpu/src/res/buffer/BaseBuffer";
 
@@ -43,10 +43,28 @@ type DrawIndexedIndirect = {
     first_instance: number,
 };
 
+/**
+ * @example
+ *  const earthScene: EarthScene = new EarthScene(
+ *     `http://10.11.11.34/BistroInterior_Wine/`,
+ *     SCENE_CAMERA,
+ *     viewportWidth,
+ *     viewportHeight,
+ *     context,
+ *     compiler,
+ *     {
+ *         lng: lng,
+ *         lat: lat,
+ *         alt: alt
+ *     }
+ *  );
+ */
 class EarthScene {
 
     private compiler: Compiler;
     private context: Context;
+
+    private maxInstanceCount: number = 0;                                                            // 记录场景内最大的 instance 数量
 
     private sceneTileMap: Map<string, InstanceDataPack> = new Map();                                // instances
     private sceneMeshMap: Map<string, MeshDataPack> = new Map();                                    // meshes
@@ -78,30 +96,34 @@ class EarthScene {
     private meshletIndexedOffset: number = 0;
     private indexSizeOffset: number = 0;
 
-    private viewProjectionBuffer!: UniformBuffer;                // 视域矩阵 buffer          -- done
-    private vertexBuffer!: StorageBuffer;                        // 密集型顶点 buffer        -- done
-    private instanceOrderBuffer!: StorageBuffer;                 // 实例顺序 buffer          -- done
-    private instanceDescBuffer!: StorageBuffer;                  // 实例描述 buffer          -- done
-    private meshDescBuffer!: StorageBuffer;                      // 物件描述 buffer          -- done    
-    private meshletDescBuffer!: StorageBuffer;                   // 簇描述 buffer            -- done
-    private indexedIndirectBuffer!: IndexedIndirectBuffer;       // 间接绘制命令 buffer       -- done
-    private indexedStoragebuffer!: IndexedStorageBuffer;         // 索引                      -- done
-    private indirectDrawCountBuffer!: StorageBuffer;             // 间接命令绘制数量 buffer
-    private maxDrawCount: number = 0;                            // 间接绘制命令执行最大数量
+    private viewProjectionBuffer!: UniformBuffer;                   // 视域矩阵 buffer          -- done
+    private viewPlaneBuffer!: UniformBuffer;                        // 视锥边缘面               -- done
+    private viewBuffer!: UniformBuffer;                             // 视角                    -- done
+    private vertexBuffer!: StorageBuffer;                           // 密集型顶点 buffer        -- done
+    private instanceOrderBuffer!: StorageBuffer;                    // 实例顺序 buffer          -- done
+    private instanceDescBuffer!: StorageBuffer;                     // 实例描述 buffer          -- done
+    private meshDescBuffer!: StorageBuffer;                         // 物件描述 buffer          -- done    
+    private meshletDescBuffer!: StorageBuffer;                      // 簇描述 buffer            -- done
+    private indexedIndirectBuffer!: IndexedIndirectBuffer;          // 间接绘制命令 buffer       -- done
+    private indexedStorageStaticBuffer!: IndexedStorageBuffer;      // 索引, 场景对应            -- done
+    private indexedStorageRuntimeBuffer!: IndexedStorageBuffer;     // 索引，动态               -- done
+    private hardwareRasterizationIndirectBuffer!: IndirectBuffer;   // 间接绘制命令集合
+    private indirectDrawCountBuffer!: StorageBuffer;                // 间接命令绘制数量 buffer
+    private maxMeshletCount: number = 0;                            // 间接绘制命令执行最大数量
 
-    private sceneVertexBufferOffset: number = 0;                 // 场景级顶点缓冲偏移
-    private sceneInstanceOrderBufferOffset: number = 0;          // 场景级实例缓冲偏移
-    private sceneInstanceDescBufferOffset: number = 0;           // 场景实例描述缓冲偏移
-    private sceneMeshDescBufferOffset: number = 0;               // 场景物件描述缓冲偏移
-    private sceneMeshletBufferOffset: number = 0;                // 场景簇缓冲偏移
-    private sceneIndexedIndirectBufferOffset: number = 0;        // 常见间接绘制缓冲偏移
-    private sceneIndexedStorageBufferOffset: number = 0;         // 场景索引缓冲偏移
+    private sceneVertexBufferOffset: number = 0;                    // 场景级顶点缓冲偏移
+    private sceneInstanceOrderBufferOffset: number = 0;             // 场景级实例缓冲偏移
+    private sceneInstanceDescBufferOffset: number = 0;              // 场景实例描述缓冲偏移
+    private sceneMeshDescBufferOffset: number = 0;                  // 场景物件描述缓冲偏移
+    private sceneMeshletBufferOffset: number = 0;                   // 场景簇缓冲偏移
+    private sceneIndexedIndirectBufferOffset: number = 0;           // 常见间接绘制缓冲偏移
+    private sceneIndexedStorageBufferOffset: number = 0;            // 场景索引缓冲偏移
 
-    private maxInstanceNum = 100000;                             // 最大物件数
+    private maxInstanceNum = 100000;                                // 最大物件数
 
-    private lng: number = 0;                                     // 经度
-    private lat: number = 0;                                     // 纬度
-    private alt: number = 0;                                     // 高程
+    private lng: number = 0;                                        // 经度
+    private lat: number = 0;                                        // 纬度
+    private alt: number = 0;                                        // 高程
 
     constructor(
         rootUri: string,
@@ -136,15 +158,20 @@ class EarthScene {
 
     private initViewPorjectionBuffer = () => {
         const handler: Handle1D = () => {
-            // cesium 默认是列主序，需转换成行主序交给 webgpu
+            // cesium 默认是列主序
             let projectionData: number[] = [];
-            let projectionMatrix = new Cesium.Matrix4();
-            let viewMatrix = new Cesium.Matrix4();
-            Cesium.Matrix4.transpose(this.syncCamera.frustum.projectionMatrix, projectionMatrix);
-            Cesium.Matrix4.toArray(projectionMatrix, projectionData);
+
+            // let projectionMatrix = new Cesium.Matrix4();
+            // Cesium.Matrix4.transpose(this.syncCamera.frustum.projectionMatrix, projectionMatrix);
+            // Cesium.Matrix4.toArray(projectionMatrix, projectionData);
+            Cesium.Matrix4.toArray(this.syncCamera.frustum.projectionMatrix, projectionData);
+
             let viewData: number[] = [];
-            Cesium.Matrix4.transpose(this.syncCamera.viewMatrix, viewMatrix);
-            Cesium.Matrix4.toArray(viewMatrix, viewData);
+            // let viewMatrix = new Cesium.Matrix4();
+            // Cesium.Matrix4.transpose(this.syncCamera.viewMatrix, viewMatrix);
+            // Cesium.Matrix4.toArray(viewMatrix, viewData);
+            Cesium.Matrix4.toArray(this.syncCamera.viewMatrix, viewData);
+
             const rawDataArr = [...projectionData, ...viewData];
             const rawDataF32 = new Float32Array(rawDataArr);
             return {
@@ -159,6 +186,142 @@ class EarthScene {
         };
         this.viewProjectionBuffer = this.compiler.createUniformBuffer({
             totalByteLength: 128,
+            handler: handler
+        });
+    }
+
+    private initViewPlaneBuffer = () => {
+        const handler: Handle1D = () => {
+            let m = new Cesium.Matrix4();
+            Cesium.Matrix4.multiply(this.syncCamera.frustum.projectionMatrix, this.syncCamera.viewMatrix, m);
+            let mat: number[] = [];
+            Cesium.Matrix4.toArray(m, mat);
+            const planes: number[] = [];
+            // 组织plane六个面
+            const v3: Vec3 = new Vec3();
+            // left
+            {
+                v3.x = -(mat[3] + mat[0]);
+                v3.y = -(mat[7] + mat[4]);
+                v3.z = -(mat[11] + mat[8]);
+                const l: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    -(mat[15] + mat[12]) / v3.len()
+                );
+                planes.push(...l.value);
+            }
+            // right
+            {
+                v3.x = mat[0] - mat[3];
+                v3.y = mat[4] - mat[7];
+                v3.z = mat[8] - mat[11];
+                const r: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    (mat[12] - mat[15]) / v3.len()
+                );
+                planes.push(...r.value);
+            }
+            // top
+            {
+                v3.x = -(mat[3] + mat[1]);
+                v3.y = -(mat[7] + mat[5]);
+                v3.z = -(mat[11] + mat[9]);
+                const t: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    -(mat[15] + mat[13]) / v3.len()
+                );
+                planes.push(...t.value);
+            }
+            // bottom
+            {
+                v3.x = mat[1] - mat[3];
+                v3.y = mat[5] - mat[7];
+                v3.z = mat[9] - mat[11];
+                const b: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    (mat[13] - mat[15]) / v3.len()
+                );
+                planes.push(...b.value);
+            }
+            // near
+            {
+                v3.x = -(mat[2] + mat[3]);
+                v3.y = -(mat[6] + mat[7]);
+                v3.z = -(mat[10] + mat[11]);
+                const n: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    -(mat[14] + mat[15]) / v3.len()
+                );
+                planes.push(...n.value);
+            }
+            // far
+            {
+                v3.x = mat[2] - mat[3];
+                v3.y = mat[6] - mat[7];
+                v3.z = mat[10] - mat[11];
+                const f: Vec4 = new Vec4().set(
+                    v3.x / v3.len(),
+                    v3.y / v3.len(),
+                    v3.z / v3.len(),
+                    (mat[14] - mat[15]) / v3.len()
+                );
+                planes.push(...f.value);
+            }
+            const rawDataF32 = new Float32Array(planes);
+            return {
+                rewrite: true,
+                detail: {
+                    offset: 0,
+                    size: 4 * 6,
+                    byteLength: 4 * 4 * 6,
+                    rawData: rawDataF32,
+                }
+            }
+        };
+        this.viewPlaneBuffer = this.compiler.createUniformBuffer({
+            totalByteLength: 4 * 4 * 6,
+            handler: handler
+        });
+    }
+
+    private initViewBuffer = () => {
+        const handler: Handle1D = () => {
+            const frustum = this.syncCamera.frustum as Cesium.PerspectiveFrustum;
+            const verticalScalingFactor = 1.0 / Math.tan(frustum.fov as number);
+            const rawDataF32 = new Float32Array([
+                this.syncCamera.position.x,                 //  camera_position_x
+                this.syncCamera.position.y,                 //  camera_position_y
+                this.syncCamera.position.z,                 //  camera_position_z
+                verticalScalingFactor,                      //  camera_vertical_scaling_factor
+                this.earthManager.getViewportWidth(),       //  viewport_width
+                this.earthManager.getViewportHeight(),      //  viewport_height
+                frustum.near,                               //  near_plane
+                frustum.far,                                //  far_plane
+                0,                                          //  pixel_threshold
+                1.0                                         //  software_rasterizer_threshold
+            ]);
+            return {
+                rewrite: true,
+                detail: {
+                    offset: 0,
+                    size: 10,
+                    byteLength: 48,
+                    rawData: rawDataF32,
+                }
+            }
+        };
+        this.viewBuffer = this.compiler.createUniformBuffer({
+            totalByteLength: 48,
             handler: handler
         });
     }
@@ -237,41 +400,29 @@ class EarthScene {
                 const details: HandleDetail[] = [];
                 let instanceDesc: InstanceDesc | undefined = this.instanceDescQueue.shift();
                 while (instanceDesc) {
-                    const buffer = new ArrayBuffer(144);
-                    const geoModelView = new Float32Array(buffer, 0, 16);
-                    const modelView = new Float32Array(buffer, 64, 16);
-                    const meshIDView = new Uint32Array(buffer, 128, 1);
-                    // let instanceMatrix = Cesium.Matrix4.fromArray(instanceDesc.model.value);
-                    // let instanceMatrixTranspose = new Cesium.Matrix4();
-                    // Cesium.Matrix4.transpose(instanceMatrix, instanceMatrixTranspose);
-                    // const instanceMatrix = Cesium.Matrix4.IDENTITY;
-                    const instanceMatrix = Cesium.Matrix4.fromArray(instanceDesc.model.value);
-                    let instanceMatrixData: number[] = [];
-                    let instanceMatrixT = new Cesium.Matrix4();
-                    Cesium.Matrix4.transpose(instanceMatrix, instanceMatrixT);
-                    let instanceMatrixTData: number[] = [];
+                    const buffer = new ArrayBuffer(80);
+                    const modelMatrixView = new Float32Array(buffer, 0, 16);
+                    const meshIDView = new Uint32Array(buffer, 16 * 4, 1);
 
-                    Cesium.Matrix4.toArray(instanceMatrixT, instanceMatrixTData);
-                    modelView.set(instanceMatrixTData);
+                    let instanceMatrix = Cesium.Matrix4.fromArray(instanceDesc.model.value);
+                    let modelMatrix = new Cesium.Matrix4();
+                    Cesium.Matrix4.multiply(locationMatrix, instanceMatrix, modelMatrix);
 
-                    let locationMatrixT = new Cesium.Matrix4();
-                    let locationMatrixTData: number[] = [];
-                    Cesium.Matrix4.transpose(locationMatrix, locationMatrixT);
-                    Cesium.Matrix4.toArray(locationMatrixT, locationMatrixTData);
-                    // Cesium.Matrix4.multiply(locationMatrix, instanceMatrix, locationInstanceMatrix);
-                    geoModelView.set(locationMatrixTData);
+                    let modelMatrixData: number[] = [];
+                    Cesium.Matrix4.toArray(modelMatrix, modelMatrixData);
 
-                    // let mat4x4Data: number[] = [];
-                    // Cesium.Matrix4.toArray(mat4x4, mat4x4Data);
-                    // f32view.set(mat4x4Data);
+                    modelMatrixView.set(modelMatrixData);
                     meshIDView.set([instanceDesc.mesh_id]);
+
                     details.push({
-                        byteLength: 144,
+                        byteLength: 80,
                         offset: this.sceneInstanceDescBufferOffset,
                         rawData: buffer,
                     });
                     this.sceneInstanceDescBufferOffset += buffer.byteLength;
                     instanceDesc = this.instanceDescQueue.shift();
+                    // 统计 scene 场景内最大 instance 数量
+                    this.maxInstanceCount++
                 }
                 return {
                     rewrite: true,
@@ -298,23 +449,32 @@ class EarthScene {
                 let meshDesc: MeshDesc | undefined = this.meshDescQueue.shift();
                 while (meshDesc) {
                     const buffer = new ArrayBuffer(32);
-                    const f32view = new Float32Array(buffer, 0, 4);
-                    const u32View = new Float32Array(buffer, f32view.byteLength, 4);
-                    f32view.set([
+                    const boundSphereView = new Float32Array(buffer, 0, 4);
+                    const vertexOffsetView = new Uint32Array(buffer, 16, 1);
+                    const meshIDView = new Uint32Array(buffer, 20, 1);
+                    const meshletCountView = new Uint32Array(buffer, 24, 1);
+                    const materialIDView = new Uint32Array(buffer, 28, 1);
+                    boundSphereView.set([
                         meshDesc.bounding_sphere.cx,
                         meshDesc.bounding_sphere.cy,
                         meshDesc.bounding_sphere.cz,
                         meshDesc.bounding_sphere.r
                     ]);
-                    u32View.set([
+                    vertexOffsetView.set([
                         meshDesc.vertex_offset,
-                        meshDesc.mesh_id,
-                        meshDesc.meshlet_count,
-                        meshDesc.material_id
                     ]);
+                    meshIDView.set([
+                        meshDesc.mesh_id,
+                    ]);
+                    meshletCountView.set([
+                        meshDesc.meshlet_count,
+                    ]);
+                    materialIDView.set([
+                        meshDesc.material_id
+                    ])
                     details.push({
                         byteLength: 32,
-                        offset: this.sceneInstanceDescBufferOffset,
+                        offset: this.sceneMeshDescBufferOffset,
                         rawData: buffer,
                     });
                     this.sceneMeshDescBufferOffset += buffer.byteLength;
@@ -432,7 +592,7 @@ class EarthScene {
         });
     }
 
-    private initIndexedStorageBuffer = () => {
+    private initIndexedStorageStaticBuffer = () => {
         const handler: Handle2D = () => {
             if (this.indexedQueue.length) {
                 const details: HandleDetail[] = [];
@@ -460,9 +620,16 @@ class EarthScene {
         }
         // 支持最大十万级物件渲染
         // indirect 长度无法估计，使用最大 buffer size
-        this.indexedStoragebuffer = this.compiler.createIndexedStorageBuffer({
+        this.indexedStorageStaticBuffer = this.compiler.createIndexedStorageBuffer({
             totalByteLength: this.context.getLimits().maxStorageBufferBindingSize,
             handler: handler
+        });
+    }
+
+    private initIndexedStorageRuntimeBuffer = () => {
+        this.indexedStorageRuntimeBuffer = this.compiler.createIndexedStorageBuffer({
+            totalByteLength: this.context.getLimits().maxStorageBufferBindingSize,
+            rawData: []
         });
     }
 
@@ -472,7 +639,7 @@ class EarthScene {
             details.push({
                 byteLength: 4,
                 offset: 0,
-                rawData: new Uint32Array([this.maxDrawCount]),
+                rawData: new Uint32Array([this.maxMeshletCount]),
             });
             return {
                 rewrite: true,
@@ -486,16 +653,27 @@ class EarthScene {
         });
     }
 
+    private initHardwareRasterizationIndirectBuffer = () => {
+        // indirect buffer align byte size = 4 * 4
+        this.hardwareRasterizationIndirectBuffer = this.compiler.createIndirectBuffer({
+            totalByteLength: 2560 * 1440 * 4 * 4
+        });
+    }
+
     private initGpuBuffers = () => {
         this.initViewPorjectionBuffer();
+        this.initViewPlaneBuffer();
+        this.initViewBuffer();
         this.initVertexBuffer();
         this.initInstanceOrderBuffer();
         this.initInstanceDescBuffer();
         this.initMeshDescBuffer();
         this.initMeshletDescBuffer();
         this.initIndexedIndirectBuffer();
-        this.initIndexedStorageBuffer();
+        this.initIndexedStorageStaticBuffer();
+        this.initIndexedStorageRuntimeBuffer();
         this.initIndirectDrawCountBuffer();
+        this.initHardwareRasterizationIndirectBuffer();
     }
 
     private statsMeshletIndicesNum = (meshDataPack: MeshDataPack) => {
@@ -598,7 +776,7 @@ class EarthScene {
                 this.indexedIndirectQueue.push(diibData);
                 // 一个 meshlet 对应一个 indexed indirect draw command.
                 // 一个 meshlet 对应一个 draw count.
-                this.maxDrawCount++;
+                this.maxMeshletCount++;
             });
             this.instanceOrderQueue.push(new Uint32Array([instanceRuntimeID]));
         }
@@ -749,6 +927,14 @@ class EarthScene {
         return this.viewProjectionBuffer;
     }
 
+    public get ViewPlaneBuffer(): UniformBuffer {
+        return this.viewPlaneBuffer;
+    }
+
+    public get ViewBuffer(): UniformBuffer {
+        return this.viewBuffer;
+    }
+
     public get VertexBuffer(): StorageBuffer {
         return this.vertexBuffer;
     }
@@ -773,21 +959,28 @@ class EarthScene {
         return this.indexedIndirectBuffer;
     }
 
-    public get IndexedStoragebuffer(): IndexedStorageBuffer {
-        return this.indexedStoragebuffer;
+    public get StaticIndexedStorageBuffer(): IndexedStorageBuffer {
+        return this.indexedStorageStaticBuffer;
+    }
+
+    public get RuntimeIndexedStorageBuffer(): IndexedStorageBuffer {
+        return this.indexedStorageRuntimeBuffer;
     }
 
     public get IndirectDrawCountBuffer(): StorageBuffer {
         return this.indirectDrawCountBuffer
     }
 
-    public get MaxDrawCount(): number {
-        return this.maxDrawCount;
+    public get HardwareRasterizationIndirectBuffer(): IndirectBuffer {
+        return this.hardwareRasterizationIndirectBuffer;
     }
 
-    public printDebugInfo(): void {
-        const limit: number = 10;
-        let step: number = 0;
+    public get MaxMeshletCount(): number {
+        return this.maxMeshletCount;
+    }
+
+    public get MaxInstanceCount(): number {
+        return this.maxInstanceCount;
     }
 
 }

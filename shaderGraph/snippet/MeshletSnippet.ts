@@ -10,7 +10,7 @@ class MeshletDescSnippet extends BaseSnippet {
      * @param compiler 
      */
     constructor(compiler: Compiler) {
-        super(compiler, 'mesh_desc_snippet');
+        super(compiler, 'meshlet_desc_snippet');
     }
 
     /**

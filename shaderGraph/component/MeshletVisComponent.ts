@@ -1,19 +1,19 @@
 import type { Compiler, Context } from "pipegpu";
-import type { DebugSnippet } from "../snippet/DebugSnippet";
+// import type { DebugSnippet } from "../snippet/DebugSnippet";
 import type { FragmentDescSnippet } from "../snippet/FragmentDescSnippet";
 import type { VertexSnippet } from "../snippet/VertexSnippet";
 import type { ViewProjectionSnippet } from "../snippet/ViewProjectionSnippet";
 import type { ViewSnippet } from "../snippet/ViewSnippet";
 import type { InstanceDescSnippet } from "../snippet/InstanceDescSnippet";
 import type { MeshDescSnippet } from "../snippet/MeshDescSnippet";
-import type { MaterialSnippet } from "../snippet/MaterialSnippet";
+// import type { MaterialDescSnippet } from "../snippet/MaterialDescSnippet";
 import type { StorageArrayU32Snippet } from "../snippet/StorageArrayU32Snippet";
 import type { IndexedStorageSnippet } from "../snippet/IndexedStorageSnippet";
-import type { PointLightSnippet } from "../snippet/PointLightSnippet";
-import type { Texture2DArraySnippet } from "../snippet/Texture2DArraySnippet";
-import type { TextureSamplerSnippet } from "../snippet/TextureSamplerSnippet";
+// import type { PointLightSnippet } from "../snippet/PointLightSnippet";
+// import type { Texture2DArraySnippet } from "../snippet/Texture2DArraySnippet";
+// import type { TextureSamplerSnippet } from "../snippet/TextureSamplerSnippet";
 import { RenderComponent } from "../RenderComponen";
-import type { IndexedStorageBuffer } from "pipegpu/src/res/buffer/IndexedStorageBuffer";
+// import type { IndexedStorageBuffer } from "pipegpu/src/res/buffer/IndexedStorageBuffer";
 
 /**
  * 
@@ -51,17 +51,17 @@ class MeshletVisComponent extends RenderComponent {
         this.indexedStorageSnippet = indexedStorageSnippet;
         this.instanceOrderSnippet = instanceOrderSnippet;
 
-        this.append(fragmentSnippet);
-        this.append(vertexSnippet);
-        this.append(viewProjectionSnippet);
-        this.append(viewSnippet);
-        this.append(instanceDescSnippet);
-        this.append(meshDescSnippet);
-        this.append(indexedStorageSnippet);
-        this.append(instanceOrderSnippet);
+        this.append(this.fragmentSnippet);
+        this.append(this.vertexSnippet);
+        this.append(this.viewProjectionSnippet);
+        this.append(this.viewSnippet);
+        this.append(this.instanceDescSnippet);
+        this.append(this.meshDescSnippet);
+        this.append(this.indexedStorageSnippet);
+        this.append(this.instanceOrderSnippet);
     }
 
-    build(): string {
+    override build(): string {
         let renderCode = super.build();
         renderCode += `
 
@@ -79,7 +79,8 @@ fn vs_main(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> 
     f.triangle_id = vi;
     f.instance_id = instance_index_order;
     f.uv = vec2<f32>(v.tx, v.ty);
-    f.position = position * instance.geo_model * view_projection.view * view_projection.projection;   //  *
+    // f.position = position * instance.geo_model * view_projection.view * view_projection.projection;
+    f.position = view_projection.projection * view_projection.view * instance.model * position;
 
     return f;
 }

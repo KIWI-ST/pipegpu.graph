@@ -29,6 +29,27 @@ abstract class ComputeComponent extends BaseComponent {
 
     /**
      * 
+     */
+    public get WorkGropuSizeX() {
+        return this.workGroupSize[0];
+    }
+
+    /**
+     * 
+     */
+    public get WorkGropuSizeY() {
+        return this.workGroupSize[1];
+    }
+
+    /**
+     * 
+     */
+    public get WorkGropuSizeZ() {
+        return this.workGroupSize[2];
+    }
+
+    /**
+     * 
      * @returns 
      */
     override build(): string {
@@ -36,7 +57,7 @@ abstract class ComputeComponent extends BaseComponent {
         let step: number = 0;
         const requestExtentSet: Set<string> = new Set();
         this.snippetArray.forEach(snippet => {
-            const groups: number = Math.floor(step / this.maxBindGroup);
+            const groups: number = Math.floor(step / this.maxBindingsPerBindGroup);
             const bindings: number = Math.floor(step % this.maxBindingsPerBindGroup);
             if (groups >= this.maxBindGroup) {
                 throw new Error(`[E][RenderShader][Build] build render shader code failed. max bind group limit: ${this.maxBindGroup}.`);

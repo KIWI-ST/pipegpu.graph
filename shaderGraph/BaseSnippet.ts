@@ -46,19 +46,30 @@ type SnippetFormat =
     | 'debug_snippet'
     | 'depth_texture_snippet'
     | 'fragment_desc_snippet'
+    | 'indexed_indirect_snippet'
+    | 'indexed_storage_snippet'
+    | 'indirect_snippet'
+    | 'instance_desc_snippet'
+    | 'material_snippet'
+    | 'material_desc_snippet'
+    | 'mesh_desc_snippet'
+    | 'meshlet_desc_snippet'
+    | 'point_light_desc_snippet'
+    | 'storage_array_atomic_u32_snippet'
+    | 'storage_array_u32_snippet'
+    | 'storage_atomic_u32_snippet'
+    | 'storage_i32_snippet'
+    | 'storage_u32_snippet'
+    | 'storage_vec2_u32_snippet'
+    | 'texture_2d_array_snippet'
+    | 'texture_2d_snippet'
+    | 'texture_sampler_snippet'
+    | 'texture_storage_2d_snippet'
     | 'vertex_snippet'
+    | 'view_plane_snippet'
     | 'view_projection_snippet'
     | 'view_snippet'
-    | 'instance_desc_snippet'
-    | 'mesh_desc_snippet'
-    | 'material_phone_desc_snippet'
-    | 'storage_array_u32_snippet'
-    | 'indexed_storage_snippet'
-    | 'storage_atomic_u32_snippet'
-    | 'point_light_desc_snippet'
-    | 'texture_2d_array_snippet'
-    | 'texture_sampler_snippet'
-    | 'indexed_indirect_snippet'
+    | 'visibility_buffer_snippet'
     ;
 
 type ShaderCodeFormat =
@@ -111,7 +122,7 @@ abstract class BaseSnippet {
      * @param bindingIndex 
      * @param shaderCodeFormat 
      */
-    abstract initShaderCode(groupIndex: number, bindingIndex: number, shaderCodeFormat: ShaderCodeFormat): IShaderCode;
+    abstract initShaderCode(_groupIndex: number, _bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode;
 
     /**
      * 

@@ -4,13 +4,13 @@ import { BaseSnippet, type IShaderCode, type ShaderCodeFormat } from "../BaseSni
 /**
  * 
  */
-class MaterialSnippet extends BaseSnippet {
+class MaterialDescSnippet extends BaseSnippet {
     /**
      * 
      * @param compiler 
      */
     constructor(compiler: Compiler) {
-        super(compiler, 'material_phone_desc_snippet');
+        super(compiler, 'material_desc_snippet');
     }
 
     /**
@@ -67,5 +67,5 @@ struct ${this.shaderCode.structName}
 }
 
 export {
-    MaterialSnippet
+    MaterialDescSnippet
 }

@@ -19,7 +19,7 @@ struct ${this.shaderCode.structName}
     index_count: u32,
     instance_count: u32,
     first_index: u32,
-    vertex_offset: i32,
+    vertex_offset: u32,
     first_instance: u32,
 };
 

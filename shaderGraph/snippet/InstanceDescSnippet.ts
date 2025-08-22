@@ -39,7 +39,6 @@ class InstanceDescSnippet extends BaseSnippet {
         
 struct ${this.shaderCode.structName}
 {
-    geo_model: mat4x4<f32>,
     model: mat4x4<f32>,
     mesh_id: u32,
 };
