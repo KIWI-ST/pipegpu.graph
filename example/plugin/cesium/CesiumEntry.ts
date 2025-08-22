@@ -103,8 +103,6 @@ const cesiumEntry = async () => {
           }),
         })
       );
-
-
 const fragmentShaderSource = `
   uniform sampler2D colorTexture; 
   uniform sampler2D depthTexture; 
