@@ -36,13 +36,13 @@ const nanoEntry = async (
     const lng: number = 116.3975392;
     const lat: number = 39.916;
     const alt: number = 100;
-    const viewportWidth = 400;
-    const viewportHeight = 400;
+    const width = 400;
+    const height = 400;
 
     const context: Context = new Context({
         selector: "GeoSketchpadConainter",
-        width: viewportWidth,
-        height: viewportHeight,
+        width: width,
+        height: height,
         devicePixelRatio: devicePixelRatio,
         requestFeatures: ['chromium-experimental-multi-draw-indirect', 'indirect-first-instance']
     });
@@ -92,8 +92,8 @@ const nanoEntry = async (
         // `http://10.11.11.34/SunTemple/`,
         `http://10.11.11.34/BistroInterior_Wine/`,
         SCENE_CAMERA,
-        viewportWidth,
-        viewportHeight,
+        context.getViewportWidth(),
+        context.getViewportHeight(),
         context,
         compiler,
         {
@@ -141,11 +141,11 @@ const nanoEntry = async (
     const instanceCountAtomicBuffer = instanceCountAtomicSnippet.getBuffer();
     const meshletCountAtomicBuffer = meshletCountAtomicSnippet.getBuffer();
     const triangleCountAtomicBuffer = triangleCountAtomicSnippet.getBuffer();
-    const hzbTexture = hzbTextureSnippet.getTexture(viewportWidth, viewportHeight, MAX_MIPMAP_COUNT, 'r32float');
-    const hzbTextureStorage = hzbTextureStorageSnippet.getTexture(viewportWidth, viewportHeight, MAX_MIPMAP_COUNT, 'r32float');
+    const hzbTexture = hzbTextureSnippet.getTexture(context.getViewportWidth(), context.getViewportHeight(), MAX_MIPMAP_COUNT, 'r32float');
+    const hzbTextureStorage = hzbTextureStorageSnippet.getTexture(context.getViewportWidth(), context.getViewportHeight(), MAX_MIPMAP_COUNT, 'r32float');
     const staticIndexedStorageBuffer = earthScene.StaticIndexedStorageBuffer;
     const runtimeIndexedStorageBuffer = earthScene.RuntimeIndexedStorageBuffer;
-    const visibilityBufferTexture = visibilityBufferSnippet.getVisbilityTexture(viewportWidth, viewportHeight);
+    const visibilityBufferTexture = visibilityBufferSnippet.getVisbilityTexture(context.getViewportWidth(), context.getViewportHeight());
     const visibilityColorAttachment = visibilityBufferSnippet.getVisibilityColorAttachment(visibilityBufferTexture);
     const textureSampler = textureSamplerSnippet.getTextureSampler();
     const runtimeMeshletMapBuffer = runtimeMeshletMapSnippet.getRuntimeBuffer();
@@ -320,8 +320,8 @@ const nanoEntry = async (
         hzbTextureStorage.cursor(0);
         hzbTexture.cursor(0);
         const dispatch = new ComputeProperty(
-            Math.ceil(viewportWidth / depthCopyComponent.WorkGropuSizeX),
-            Math.ceil(viewportWidth / depthCopyComponent.WorkGropuSizeY),
+            Math.ceil(width / depthCopyComponent.WorkGropuSizeX),
+            Math.ceil(width / depthCopyComponent.WorkGropuSizeY),
             1
         );
         const desc: ComputeHolderDesc = {
@@ -334,7 +334,7 @@ const nanoEntry = async (
         };
         // 拷贝第 0 层 (texture view 0)到 texture_storage_2d 里
         desc.handler = (encoder: GPUCommandEncoder): void => {
-            const copySize: GPUExtent3DDict = { width: viewportWidth, height: viewportHeight, depthOrArrayLayers: 1 };
+            const copySize: GPUExtent3DDict = { width: width, height: height, depthOrArrayLayers: 1 };
             const src: GPUTexelCopyTextureInfo = {
                 texture: hzbTextureStorage.getGpuTexture(),
                 mipLevel: 0,
@@ -379,8 +379,8 @@ const nanoEntry = async (
             hzbTexture.cursor(sourceCursor);
             hzbTextureStorage.cursor(destCursor);
             const dispatch = new ComputeProperty(
-                Math.ceil(viewportWidth >> k / downsamplingComponent.WorkGropuSizeX),
-                Math.ceil(viewportHeight >> k / downsamplingComponent.WorkGropuSizeY),
+                Math.ceil(width >> k / downsamplingComponent.WorkGropuSizeX),
+                Math.ceil(height >> k / downsamplingComponent.WorkGropuSizeY),
                 1
             );
             const desc: ComputeHolderDesc = {
@@ -391,7 +391,7 @@ const nanoEntry = async (
             };
             // 拷贝第 destCursor 层 hzbTextureStorage 到 hzbTexture 里
             desc.handler = (encoder: GPUCommandEncoder): void => {
-                const copySize: GPUExtent3DDict = { width: viewportWidth >> destCursor, height: viewportHeight >> destCursor, depthOrArrayLayers: 1 };
+                const copySize: GPUExtent3DDict = { width: width >> destCursor, height: height >> destCursor, depthOrArrayLayers: 1 };
                 const src: GPUTexelCopyTextureInfo = {
                     texture: hzbTextureStorage.getGpuTexture(),
                     mipLevel: destCursor,
@@ -568,7 +568,13 @@ const nanoEntry = async (
             runtimeMeshletMapSnippet,
         );
         const WGSLCode = hardwareRasterizationComponent.build();
-        const dispatch: RenderProperty = new RenderProperty(hardwareRasterizationIndirectBuffer, meshletCountAtomicBuffer, earthScene.MaxMeshletCount);
+        const dispatch: RenderProperty = new RenderProperty(
+            hardwareRasterizationIndirectBuffer,
+            meshletCountAtomicBuffer,
+            (): number => {
+                return earthScene.MaxMeshletCount
+            }
+        );
         const desc: RenderHolderDesc = {
             label: 'hardware rasterization.',
             vertexShader: compiler.createVertexShader({
@@ -595,38 +601,39 @@ const nanoEntry = async (
         holders.push(compiler.compileRenderHolder(desc));
     }
 
-    // // 9. visbility buffer 可视
-    // {
-    //     const visibilityBufferVisComponent = new VisibilityBuffertVisComponent(
-    //         context,
-    //         compiler,
-    //         debugSnippet,
-    //         visibilityBufferSnippet,
-    //         viewSnippet,
-    //         runtimeMeshletMapSnippet
-    //     );
-    //     const WGSLCode = visibilityBufferVisComponent.build();
-    //     const dispatch = new RenderProperty(6, 1);
-    //     const desc: RenderHolderDesc = {
-    //         label: 'visibility buffer.',
-    //         vertexShader: compiler.createVertexShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'vs_main',
-    //         }),
-    //         fragmentShader: compiler.createFragmentShader({
-    //             code: WGSLCode,
-    //             entryPoint: 'fs_main',
-    //         }),
-    //         dispatch: dispatch,
-    //         colorAttachments: colorAttachments,
-    //         depthStencilAttachment: depthStencilAttachment,
-    //     };
-    //     desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
-    //     desc.uniforms?.assign(visibilityBufferSnippet.getVariableName(), visibilityBufferTexture);
-    //     desc.uniforms?.assign(viewSnippet.getVariableName(), viewBuffer);
-    //     desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
-    //     holders.push(compiler.compileRenderHolder(desc));
-    // }
+    // 9. visbility buffer 可视
+    {
+        const visibilityBufferVisComponent: VisibilityBuffertVisComponent = new VisibilityBuffertVisComponent(
+            context,
+            compiler,
+            debugSnippet,
+            visibilityBufferSnippet,
+            viewSnippet,
+            runtimeMeshletMapSnippet
+        );
+        const WGSLCode = visibilityBufferVisComponent.build();
+        const dispatch = new RenderProperty(6, 1);
+        const desc: RenderHolderDesc = {
+            label: 'visibility buffer.',
+            vertexShader: compiler.createVertexShader({
+                code: WGSLCode,
+                entryPoint: 'vs_main',
+            }),
+            fragmentShader: compiler.createFragmentShader({
+                code: WGSLCode,
+                entryPoint: 'fs_main',
+            }),
+            dispatch: dispatch,
+            uniforms: new Uniforms(),
+            colorAttachments: colorAttachments,
+            depthStencilAttachment: depthStencilAttachment,
+        };
+        desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
+        desc.uniforms?.assign(visibilityBufferSnippet.getVariableName(), visibilityBufferTexture);
+        desc.uniforms?.assign(viewSnippet.getVariableName(), viewBuffer);
+        desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
+        holders.push(compiler.compileRenderHolder(desc));
+    }
 
     // 10. 显示物件位置，辅助判断剔除结果是否正确
     {

@@ -11,10 +11,11 @@ class VisibilityBufferSnippet extends BaseSnippet {
     }
 
     /**
-     * 
+     * @description get r32uint texel format texture.
      * @param width 
      * @param height 
      * @returns 
+     * 
      */
     getVisbilityTexture = (width: number, height: number): Texture2D => {
         return this.compiler.createTexture2D({
@@ -22,23 +23,31 @@ class VisibilityBufferSnippet extends BaseSnippet {
             height: height,
             textureFormat: 'r32uint',
             mipmapCount: 1,
-            appendixTextureUsages: GPUTextureUsage.STORAGE_BINDING
+            appendixTextureUsages: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT
         });
     }
 
     /**
      * 
+     * @description visibility Color Attachment use r32uint texel format. not support blending.
+     * 
      */
     getVisibilityColorAttachment = (visbilityTexture: Texture2D) => {
         return this.compiler.createColorAttachment({
             texture: visbilityTexture,
-            blendFormat: 'opaque',
+            blendFormat: 'disable',
             colorLoadStoreFormat: 'clearStore',
             clearColor: [0.0, 0.0, 0.0, 1.0]
         });
     }
 
-
+    /**
+     * 
+     * @param _groupIndex 
+     * @param _bindingIndex 
+     * @param _shaderCodeFormat 
+     * @returns 
+     */
     override initShaderCode(_groupIndex: number, _bindingIndex: number, _shaderCodeFormat: ShaderCodeFormat): IShaderCode {
         // r32uint
         // visibility buffer, use rg32uint format, https://www.w3.org/TR/WGSL/'

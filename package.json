@@ -13,7 +13,7 @@
   "devDependencies": {
     "@webgpu/types": "^0.1.64",
     "cesium": "^1.131.0",
-    "pipegpu": "^0.3.1",
+    "pipegpu": "^0.3.4",
     "pipegpu.matrix": "^0.6.9",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",

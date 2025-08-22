@@ -68,7 +68,7 @@ struct DebugFragment
 }
 
 @vertex
-fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DebugFragment {
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> DebugFragment
 {
     var f: DebugFragment;
     var positions: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
@@ -223,22 +223,27 @@ const colors: array<vec4<f32>, 127> = array<vec4<f32>, 127>(
 );
 
 @fragment
-fn fs_main(f: DebugFragment) -> @location(0) vec4 < f32 > {
+fn fs_main(f: DebugFragment) -> @location(0) vec4 <f32> 
+{
     let x: u32 = u32(${this.viewSnippet.getVariableName()}.viewport_width * f.uv.x);
     let y: u32 = u32(${this.viewSnippet.getVariableName()}.viewport_height * f.uv.y);
     let xy: vec2<u32> = vec2<u32>(x, y);
-
     let pack_id: u32 = textureLoad(${this.visibilityBufferSnippet.getVariableName()}, xy).r;
+    /////////////////////////////////////DEBUG-START///////////////////////////////////////
+    ${this.debugSnippet.getVariableName()}[0].a = f32(pack_id);
+    /////////////////////////////////////DEBUG-END///////////////////////////////////////
+
     if (pack_id == 0u) {
         return colors[0];
     }
 
     let runtiem_meshlet_id_offset: u32 = 1;
     let runtime_meshlet_id: u32 = (pack_id >> 7u) - runtiem_meshlet_id_offset;
-    let instance_id = { 3}[runtime_meshlet_id].x + 1;
-    let meshlet_id = { 3}[runtime_meshlet_id].y;
+    let instance_id = ${this.runtimeMeshletMapSnippet.getVariableName()}[runtime_meshlet_id].x + 1;
+    let meshlet_id = ${this.runtimeMeshletMapSnippet.getVariableName()}[runtime_meshlet_id].y;
     let triangle_id: u32 = pack_id & 0x7Fu;
     let color: vec4<f32> = colors[meshlet_id % 127];
+
     return color;
 }
 

@@ -144,9 +144,9 @@ fn vs_main(
 
     //f.position_ws = model * vertex_position;
     //f.normal_ws = normalize(normal_ws.xyz);
-    //f.uv = vertex_uv;
-    //f.instance_id = instance_id;
-    //f.meshlet_id = meshlet_id;
+    f.uv = vertex_uv;
+    f.instance_id = instance_id;
+    f.meshlet_id = meshlet_id;
 
     let triangle_id: u32 = u32(in_vertex_index/3u);
 
@@ -155,12 +155,19 @@ fn vs_main(
     let runtiem_meshlet_id: u32 = in_instance_index + runtiem_meshlet_id_offset;
     f.pack_id = ((runtiem_meshlet_id & 0x1FFFFFFu) << 7u) | (triangle_id & 0x7Fu);
 
+
+
     return f;
 }
 
 @fragment
 fn fs_main(f: ${this.fragmentDescSnippet.getStructName()}) -> @location(0) u32 {
-    // bitcast<u32>( f.position.z / f.position.w), 
+    // bitcast<u32>( f.position.z / f.position.w),
+
+    /////////////////////////////////////DEBUG-START///////////////////////////////////////
+    ${this.debugSnippet.getVariableName()}[0].a = f32(f.instance_id);
+    /////////////////////////////////////DEBUG-END///////////////////////////////////////
+
     return f.pack_id;
 }
 
