@@ -52,8 +52,115 @@ const cesiumEntry = async () => {
 
     // console.log(r);
 
+
+
     SCENE_CAMERA = viewer.scene.camera;
     SCENE_CAMERA.setView({ destination: lnglat });
+
+    const imgLayer = new Cesium.UrlTemplateImageryProvider({
+        url:
+          "https://webst02.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}",
+        minimumLevel: 3,
+        maximumLevel: 18,
+      });
+      viewer.imageryLayers.addImageryProvider(imgLayer);
+
+
+
+
+    const context = (viewer.scene as any).context;
+
+
+  
+    let primitive  , postProcess;
+
+    let canvas = document.getElementById("GeoSketchpadConainter")  as HTMLCanvasElement;
+    let texture =new (Cesium as any).Texture({
+        context: context,
+        source: canvas,
+    });
+   
+
+      const instance = new Cesium.GeometryInstance({
+        geometry: new Cesium.RectangleGeometry({
+          rectangle: Cesium.Rectangle.fromDegrees(115.20, 39.28,117.30, 41.05),
+        }),
+      });
+
+      primitive = viewer.scene.primitives.add(
+        new Cesium.Primitive({
+          geometryInstances: instance,
+          appearance: new Cesium.MaterialAppearance({
+            material: new Cesium.Material({
+              fabric: {
+                type: "Image",
+                uniforms: {
+               // image: "http://10.11.11.32:1121/Examples/fluidCustomwame/view.png",
+                   image:canvas
+                },
+              },
+            }),
+          }),
+        })
+      );
+const fragmentShaderSource = `
+  uniform sampler2D colorTexture; 
+  uniform sampler2D depthTexture; 
+  uniform sampler2D textureWebgpuColor; 
+  in vec2 v_textureCoordinates; 
+
+  void main(void) 
+  { 
+      vec4 webgpuColor = texture(textureWebgpuColor, v_textureCoordinates);
+      vec4 cesiumColor = texture(colorTexture, v_textureCoordinates);
+      
+      out_FragColor =  webgpuColor + cesiumColor  ; 
+
+      }
+  `;
+
+  postProcess = viewer.scene.postProcessStages.add(
+  new Cesium.PostProcessStage({
+    fragmentShader: fragmentShaderSource,
+    uniforms:{
+        textureWebgpuColor : texture,  
+    }
+  })
+);
+let  flag = false
+viewer.camera.changed.addEventListener(function() {
+   // flag = true
+    postProcess.uniforms.textureWebgpuColor = canvas.toDataURL("image/png")
+});
+
+
+//postRender   postUpdate  preRender 
+
+// viewer.scene.preUpdate.addEventListener(function () {
+    
+   // (document.getElementById("imgId") as HTMLImageElement).src = canvas.toDataURL("image/png");
+    
+   // primitive.appearance.material.uniforms.image = canvas.toDataURL("image/png")
+    // postProcess.uniforms.textureWebgpuColor = canvas.toDataURL("image/png")
+  //  postProcess.uniforms.textureWebgpuColor = "http://10.11.11.32:1121/Examples/fluidCustomwame/view.png"
+ 
+  // if (texture && !texture.isDestroyed()) {
+  //   texture.destroy();
+  // }
+
+  // if(flag){
+
+  //     texture= new (Cesium as any).Texture({
+  //         context: context,
+  //         source: canvas,
+  //     });
+  //     postProcess.uniforms.textureWebgpuColor = texture
+  // }
+
+  //});
+
+  
+
 }
 
 export {

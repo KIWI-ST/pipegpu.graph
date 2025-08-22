@@ -87,10 +87,16 @@ const nanoEntry = async (
 
     // 
     const earthScene: EarthScene = new EarthScene(
-        // `http://10.11.11.34/BistroInterior/`,
-        // `http://10.11.11.34/BistroExterior/`,
-        // `http://10.11.11.34/SunTemple/`,
-        `http://10.11.11.34/BistroInterior_Wine/`,
+           // `http://127.0.0.1/EmeraldSquare_Day/`,
+        // `http://127.0.0.1/BistroExterior/`,
+        // `http://127.0.0.1/SunTemple/`,
+        // `http://10.11.20.212/output/BistroExterior/`,
+        // `http://10.11.11.32:8873/webgpu/www/BistroExterior/`,
+        // `http://10.11.11.32:8873/webgpu/www/BistroExterior/`,
+// `http://10.11.11.34/BistroInterior/`,
+// `http://10.11.11.34/BistroExterior/`,
+// `http://10.11.11.34/SunTemple/`,
+`http://10.11.11.34/BistroInterior_Wine/`,
         SCENE_CAMERA,
         context.getViewportWidth(),
         context.getViewportHeight(),
