@@ -35,7 +35,7 @@ const nanoEntry = async (
 ) => {
     const lng: number = 116.3975392;
     const lat: number = 39.916;
-    const alt: number = 100;
+    const alt: number = 1800;
     const width = 400;
     const height = 400;
 
@@ -44,12 +44,12 @@ const nanoEntry = async (
         width: width,
         height: height,
         devicePixelRatio: devicePixelRatio,
-        requestFeatures: ['chromium-experimental-multi-draw-indirect', 'indirect-first-instance']
+        requestFeatures: ['chromium-experimental-multi-draw-indirect', 'indirect-first-instance', 'timestamp-query']
     });
 
     await context.init();
 
-    const compiler: Compiler = new Compiler({ ctx: context });
+    const compiler: Compiler = new Compiler({ context: context });
     {
         const canvas: HTMLCanvasElement = document.getElementById('GeoSketchpadConainter') as HTMLCanvasElement;
         canvas.style.left = `400px`;
@@ -87,16 +87,16 @@ const nanoEntry = async (
 
     // 
     const earthScene: EarthScene = new EarthScene(
-           // `http://127.0.0.1/EmeraldSquare_Day/`,
+        // `http://127.0.0.1/EmeraldSquare_Day/`,
         // `http://127.0.0.1/BistroExterior/`,
         // `http://127.0.0.1/SunTemple/`,
         // `http://10.11.20.212/output/BistroExterior/`,
         // `http://10.11.11.32:8873/webgpu/www/BistroExterior/`,
         // `http://10.11.11.32:8873/webgpu/www/BistroExterior/`,
-// `http://10.11.11.34/BistroInterior/`,
-// `http://10.11.11.34/BistroExterior/`,
-// `http://10.11.11.34/SunTemple/`,
-`http://10.11.11.34/BistroInterior_Wine/`,
+        // `http://10.11.11.34/BistroInterior/`,
+        // `http://10.11.11.34/BistroExterior/`,
+        // `http://10.11.11.34/SunTemple/`,
+        `http://10.11.11.34/BistroInterior_Wine/`,
         SCENE_CAMERA,
         context.getViewportWidth(),
         context.getViewportHeight(),
@@ -195,7 +195,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
         desc.uniforms?.assign(instanceCountAtomicSnippet.getVariableName(), instanceCountAtomicBuffer);
         desc.uniforms?.assign(meshletCountAtomicSnippet.getVariableName(), meshletCountAtomicBuffer);
-        holders.push(compiler.compileComputeHolder(desc));
+        // holders.push(compiler.compileComputeHolder(desc));
     }
 
 
@@ -237,7 +237,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(triangleCountAtomicSnippet.getVariableName(), triangleCountAtomicBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
         desc.uniforms?.assign(runtimeReuseVisibilityIndirectSnippet.getVariableName(), runtimeReuseVisibilityIndirectBuffer);
-        holders.push(compiler.compileComputeHolder(desc));
+        // holders.push(compiler.compileComputeHolder(desc));
     }
 
     // 2. 重设深度值，全图深度改为 1.0
@@ -264,7 +264,7 @@ const nanoEntry = async (
             depthStencilAttachment: depthClearAttachment
         };
         desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
-        holders.push(compiler.compileRenderHolder(desc));
+        // holders.push(compiler.compileRenderHolder(desc));
     }
 
     // 3. 重投影深度
@@ -306,7 +306,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
         desc.uniforms?.assign(runtimeIndexedStorageSnippet.getVariableName(), runtimeIndexedStorageBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
-        holders.push(compiler.compileRenderHolder(desc));
+        // holders.push(compiler.compileRenderHolder(desc));
     }
 
     // 4. 输入深度，生成 hzb
@@ -358,7 +358,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
         desc.uniforms?.assign(depthTextureSnippet.getVariableName(), depthTexture);
         desc.uniforms?.assign(hzbTextureStorageSnippet.getVariableName(), hzbTextureStorage);
-        holders.push(compiler.compileComputeHolder(desc));
+        // holders.push(compiler.compileComputeHolder(desc));
     }
 
     // 4. 输入深度，生成 hzb
@@ -415,7 +415,7 @@ const nanoEntry = async (
             desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
             desc.uniforms?.assign(hzbTextureSnippet.getVariableName(), hzbTexture);
             desc.uniforms?.assign(hzbTextureStorageSnippet.getVariableName(), hzbTextureStorage);
-            holders.push(compiler.compileComputeHolder(desc));
+            // holders.push(compiler.compileComputeHolder(desc));
         }
     }
 
@@ -465,7 +465,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
         desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), instanceOrderBuffer);
         desc.uniforms?.assign(instanceCountAtomicSnippet.getVariableName(), instanceCountAtomicBuffer);
-        holders.push(compiler.compileComputeHolder(desc));
+        // holders.push(compiler.compileComputeHolder(desc));
     }
 
     // 6. 簇剔除
@@ -528,7 +528,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(meshletCountAtomicSnippet.getVariableName(), meshletCountAtomicBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
         desc.uniforms?.assign(hardwareRasterizationIndirectSnippet.getVariableName(), hardwareRasterizationIndirectBuffer);
-        holders.push(compiler.compileComputeHolder(desc));
+        // holders.push(compiler.compileComputeHolder(desc));
     }
 
     // 7. 重置深度，使用 1.0
@@ -555,7 +555,7 @@ const nanoEntry = async (
             colorAttachments: colorAttachments,
             depthStencilAttachment: depthClearAttachment
         };
-        holders.push(compiler.compileRenderHolder(desc));
+        // holders.push(compiler.compileRenderHolder(desc));
     }
 
     // 8. 硬件光栅化
@@ -604,7 +604,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
         desc.uniforms?.assign(staticIndexedStorageSnippet.getVariableName(), staticIndexedStorageBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
-        holders.push(compiler.compileRenderHolder(desc));
+        // holders.push(compiler.compileRenderHolder(desc));
     }
 
     // 9. visbility buffer 可视
@@ -638,49 +638,46 @@ const nanoEntry = async (
         desc.uniforms?.assign(visibilityBufferSnippet.getVariableName(), visibilityBufferTexture);
         desc.uniforms?.assign(viewSnippet.getVariableName(), viewBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
-        holders.push(compiler.compileRenderHolder(desc));
+        // holders.push(compiler.compileRenderHolder(desc));
     }
 
     // 10. 显示物件位置，辅助判断剔除结果是否正确
     {
-        // const debugMeshletVisHolder = initMeshletVisShader(
-        //     context,
-        //     compiler,
-        //     earthScene,
-        //     colorAttachments,
-        //     depthStencilAttachment,
-        //     {
-        //         fragmentSnippet: fragmentSnippet,
-        //         vertexSnippet: vertexSnippet,
-        //         instanceDescSnippet: instanceDescSnippet,
-        //         viewProjectionSnippet: viewProjectionSnippet,
-        //         viewSnippet: viewSnippet,
-        //         meshDescSnippet: meshDescSnippet,
-        //         indexedStorageSnippet: staticIndexedStorageSnippet,
-        //         instanceOrderSnippet: instanceOrderSnippet
-        //     }
-        // );
-        // holders.push(debugMeshletVisHolder);
+        const debugMeshletVisHolder = initMeshletVisShader(
+            context,
+            compiler,
+            earthScene,
+            colorAttachments,
+            depthStencilAttachment,
+            {
+                fragmentSnippet: fragmentSnippet,
+                vertexSnippet: vertexSnippet,
+                instanceDescSnippet: instanceDescSnippet,
+                viewProjectionSnippet: viewProjectionSnippet,
+                viewSnippet: viewSnippet,
+                meshDescSnippet: meshDescSnippet,
+                indexedStorageSnippet: staticIndexedStorageSnippet,
+                instanceOrderSnippet: instanceOrderSnippet
+            }
+        );
+        holders.push(debugMeshletVisHolder);
     }
 
     // raf
     {
-        earthScene.forceUpdateSceneManager();
-
+        await earthScene.forceInitSceneManager();
         // const graph: OrderedGraph = new OrderedGraph(context);
         const renderLoop = async () => {
             earthScene.updateSceneData();
-
+            // graph.append(holders);
+            // graph.build();
             context.refreshFrameResource();
             const encoder = context.getCommandEncoder();
             holders.forEach(holder => {
                 holder.build(encoder);
             });
             context.submitFrameResource();
-
-            // debug
             await debugHandler();
-
             requestAnimationFrame(renderLoop);
         };
         requestAnimationFrame(renderLoop);

@@ -3,7 +3,7 @@ import * as Cesium from 'cesium';
 import { Mat4, Vec4, Vec3 } from "pipegpu.matrix";
 import { fetchHDMF, type BoundingSphere, type MaterialType, type MeshDataPack } from "../../util/fetchHDMF";
 import { EarthManager } from "./EarthManager";
-import { fetchJSON, type Instance, type InstanceDataPack } from "../../util/fetchJSON";
+import { fetchGeoTilesetJSON, fetchInstanceDescJSON, type Instance, type InstanceDataPack } from "../../util/fetchJSON";
 import { fetchKTX2AsBc7RGBA, type KTXPackData } from "../../util/fetchKTX";
 import { webMercatorTileSchema } from "./earth/QuadtreeTileSchema";
 import { WGS84 } from "./earth/Ellipsoid";
@@ -60,11 +60,12 @@ type DrawIndexedIndirect = {
  *  );
  */
 class EarthScene {
+    private geoTielsetSet: Set<string> = new Set();                                                 // vaild json set
 
     private compiler: Compiler;
     private context: Context;
 
-    private maxInstanceCount: number = 0;                                                            // 记录场景内最大的 instance 数量
+    private maxInstanceCount: number = 0;                                                           // 记录场景内最大的 instance 数量
 
     private sceneTileMap: Map<string, InstanceDataPack> = new Map();                                // instances
     private sceneMeshMap: Map<string, MeshDataPack> = new Map();                                    // meshes
@@ -790,136 +791,143 @@ class EarthScene {
         }
         let remain = this.sceneTaskLimit;
         let tile = visualRevealTiles?.shift();
-        const tileKey = `${this.rootUri}${tile?.X}_${tile?.Y}_${tile?.Level}.json`;
+        const tileKey = `${tile?.X}_${tile?.Y}_${tile?.Level}.json`;
+        const tileUri = `${this.rootUri}${tileKey}`;
         while (remain-- && tile && !this.sceneTileMap.has(tileKey)) {
-            const jsonPackData = await fetchJSON(tileKey, tileKey);
-            jsonPackData?.instances.forEach(async instance => {
-                this.sceneTileMap.set(tileKey, jsonPackData);
-                const meshKey = `${this.rootUri}${instance.mesh_id}.hdmf`;
-                const meshPackData = await fetchHDMF(meshKey, instance.mesh_id);
-                this.sceneMeshMap.set(meshPackData.meshId, meshPackData);
-                const material: any = meshPackData.material;
-                switch (material?.material_type as MaterialType) {
-                    case 'kMaterialPBR':
-                        {
-                            const albedo_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.albedo_texture}`, material.albedo_texture);
-                            this.sceneTextureMap.set(material.albedo_texture, albedo_texture!);
-                            const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.metal_roughness_texture}`, material.metal_roughness_texture);
-                            this.sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
-                            const normal_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.normal_texture}`, material.normal_texture);
-                            this.sceneTextureMap.set(material.normal_texture, normal_texture!);
-                            const emissive_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.emissive_texture}`, material.emissive_texture);
-                            this.sceneTextureMap.set(material.emissive_texture, emissive_texture!);
-                            const ambient_occlusion_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.ambient_occlusion_texture}`, material.ambient_occlusion_texture);
-                            this.sceneTextureMap.set(material.ambient_occlusion_texture, ambient_occlusion_texture!);
-                            break;
-                        }
-                    case 'kMaterialPBR1':
-                        {
-                            const albedo_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.albedo_texture}`, material.albedo_texture);
-                            this.sceneTextureMap.set(material.albedo_texture, albedo_texture!);
-                            const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.metal_roughness_texture}`, material.metal_roughness_texture);
-                            this.sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
-                            const normal_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.normal_texture}`, material.normal_texture);
-                            this.sceneTextureMap.set(material.normal_texture, normal_texture!);
-                            const ambient_occlusion_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.ambient_occlusion_texture}`, material.ambient_occlusion_texture);
-                            this.sceneTextureMap.set(material.ambient_occlusion_texture, ambient_occlusion_texture!);
-                            break;
-                        }
-                    case 'kMaterialPBR2':
-                        {
-                            const albedo_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.albedo_texture}`, material.albedo_texture);
-                            this.sceneTextureMap.set(material.albedo_texture, albedo_texture!);
-                            const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.metal_roughness_texture}`, material.metal_roughness_texture);
-                            this.sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
-                            const normal_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.normal_texture}`, material.normal_texture);
-                            this.sceneTextureMap.set(material.normal_texture, normal_texture!);
-                            break;
-                        }
-                    case 'kMaterialPBR3':
-                        {
-                            const albedo_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.albedo_texture}`, material.albedo_texture);
-                            this.sceneTextureMap.set(material.albedo_texture, albedo_texture!);
-                            const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.metal_roughness_texture}`, material.metal_roughness_texture);
-                            this.sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
-                            break;
-                        }
-                    case 'kMaterialPhong':
-                        {
-                            const ambient_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.ambient_texture}`, material.ambient_texture);
-                            this.sceneTextureMap.set(material.ambient_texture, ambient_texture!);
-                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
-                            this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
-                            const specular_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.specular_texture}`, material.specular_texture);
-                            this.sceneTextureMap.set(material.specular_texture, specular_texture!);
-                            const emissive_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.emissive_texture}`, material.emissive_texture);
-                            this.sceneTextureMap.set(material.emissive_texture, emissive_texture!);
-                            break;
-                        }
-                    case 'kMaterialPhong1':
-                        {
-                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
-                            this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
-                            const specular_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.specular_texture}`, material.specular_texture);
-                            this.sceneTextureMap.set(material.specular_texture, specular_texture!);
-                            const emissive_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.emissive_texture}`, material.emissive_texture);
-                            this.sceneTextureMap.set(material.emissive_texture, emissive_texture!);
-                            break;
-                        }
-                    case 'kMaterialPhong2':
-                        {
-                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
-                            this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
-                            const specular_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.specular_texture}`, material.specular_texture);
-                            this.sceneTextureMap.set(material.specular_texture, specular_texture!);
-                            break;
-                        }
-                    case 'kMaterialPhong3':
-                        {
-                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
-                            this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
-                            const specular_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.specular_texture}`, material.specular_texture);
-                            this.sceneTextureMap.set(material.specular_texture, specular_texture!);
-                            break;
-                        }
-                    case 'kMaterialPhong4':
-                        {
-                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
-                            this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
-                            break;
-                        }
-
-                    case 'kMaterialPhong5':
-                        {
-                            break;
-                        }
-                    case 'kMaterialPhong6':
-                        {
-                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
-                            this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
-                            const normal_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.normal_texture}`, material.normal_texture);
-                            this.sceneTextureMap.set(material.normal_texture, normal_texture!);
-                            break;
-                        }
-                    case 'kMaterialPhong7':
-                        {
-                            const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
-                            this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
-                            break;
-                        }
-                    case 'kMaterialPhong8':
-                        {
-                            break;
-                        }
-                }
-                // build pair:
-                // instance - mesh - material - textures
-                this.appendData(instance, meshPackData);
-            });
+            if (this.geoTielsetSet.has(tileKey)) {
+                const jsonPackData = await fetchInstanceDescJSON(tileUri, tileKey);
+                jsonPackData?.instances.forEach(async instance => {
+                    this.sceneTileMap.set(tileKey, jsonPackData);
+                    const meshKey = `${this.rootUri}${instance.mesh_id}.hdmf`;
+                    const meshPackData = await fetchHDMF(meshKey, instance.mesh_id);
+                    this.sceneMeshMap.set(meshPackData.meshId, meshPackData);
+                    const material: any = meshPackData.material;
+                    switch (material?.material_type as MaterialType) {
+                        case 'kMaterialPBR':
+                            {
+                                const albedo_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.albedo_texture}`, material.albedo_texture);
+                                this.sceneTextureMap.set(material.albedo_texture, albedo_texture!);
+                                const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.metal_roughness_texture}`, material.metal_roughness_texture);
+                                this.sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
+                                const normal_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.normal_texture}`, material.normal_texture);
+                                this.sceneTextureMap.set(material.normal_texture, normal_texture!);
+                                const emissive_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.emissive_texture}`, material.emissive_texture);
+                                this.sceneTextureMap.set(material.emissive_texture, emissive_texture!);
+                                const ambient_occlusion_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.ambient_occlusion_texture}`, material.ambient_occlusion_texture);
+                                this.sceneTextureMap.set(material.ambient_occlusion_texture, ambient_occlusion_texture!);
+                                break;
+                            }
+                        case 'kMaterialPBR1':
+                            {
+                                const albedo_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.albedo_texture}`, material.albedo_texture);
+                                this.sceneTextureMap.set(material.albedo_texture, albedo_texture!);
+                                const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.metal_roughness_texture}`, material.metal_roughness_texture);
+                                this.sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
+                                const normal_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.normal_texture}`, material.normal_texture);
+                                this.sceneTextureMap.set(material.normal_texture, normal_texture!);
+                                const ambient_occlusion_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.ambient_occlusion_texture}`, material.ambient_occlusion_texture);
+                                this.sceneTextureMap.set(material.ambient_occlusion_texture, ambient_occlusion_texture!);
+                                break;
+                            }
+                        case 'kMaterialPBR2':
+                            {
+                                const albedo_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.albedo_texture}`, material.albedo_texture);
+                                this.sceneTextureMap.set(material.albedo_texture, albedo_texture!);
+                                const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.metal_roughness_texture}`, material.metal_roughness_texture);
+                                this.sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
+                                const normal_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.normal_texture}`, material.normal_texture);
+                                this.sceneTextureMap.set(material.normal_texture, normal_texture!);
+                                break;
+                            }
+                        case 'kMaterialPBR3':
+                            {
+                                const albedo_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.albedo_texture}`, material.albedo_texture);
+                                this.sceneTextureMap.set(material.albedo_texture, albedo_texture!);
+                                const metal_roughness_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.metal_roughness_texture}`, material.metal_roughness_texture);
+                                this.sceneTextureMap.set(material.metal_roughness_texture, metal_roughness_texture!);
+                                break;
+                            }
+                        case 'kMaterialPhong':
+                            {
+                                const ambient_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.ambient_texture}`, material.ambient_texture);
+                                this.sceneTextureMap.set(material.ambient_texture, ambient_texture!);
+                                const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
+                                this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+                                const specular_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.specular_texture}`, material.specular_texture);
+                                this.sceneTextureMap.set(material.specular_texture, specular_texture!);
+                                const emissive_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.emissive_texture}`, material.emissive_texture);
+                                this.sceneTextureMap.set(material.emissive_texture, emissive_texture!);
+                                break;
+                            }
+                        case 'kMaterialPhong1':
+                            {
+                                const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
+                                this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+                                const specular_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.specular_texture}`, material.specular_texture);
+                                this.sceneTextureMap.set(material.specular_texture, specular_texture!);
+                                const emissive_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.emissive_texture}`, material.emissive_texture);
+                                this.sceneTextureMap.set(material.emissive_texture, emissive_texture!);
+                                break;
+                            }
+                        case 'kMaterialPhong2':
+                            {
+                                const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
+                                this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+                                const specular_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.specular_texture}`, material.specular_texture);
+                                this.sceneTextureMap.set(material.specular_texture, specular_texture!);
+                                break;
+                            }
+                        case 'kMaterialPhong3':
+                            {
+                                const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
+                                this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+                                const specular_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.specular_texture}`, material.specular_texture);
+                                this.sceneTextureMap.set(material.specular_texture, specular_texture!);
+                                break;
+                            }
+                        case 'kMaterialPhong4':
+                            {
+                                const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
+                                this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+                                break;
+                            }
+                        case 'kMaterialPhong5':
+                            {
+                                break;
+                            }
+                        case 'kMaterialPhong6':
+                            {
+                                const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
+                                this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+                                const normal_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.normal_texture}`, material.normal_texture);
+                                this.sceneTextureMap.set(material.normal_texture, normal_texture!);
+                                break;
+                            }
+                        case 'kMaterialPhong7':
+                            {
+                                const diffuse_texture = await fetchKTX2AsBc7RGBA(`${this.rootUri}${material.diffuse_texture}`, material.diffuse_texture);
+                                this.sceneTextureMap.set(material.diffuse_texture, diffuse_texture!);
+                                break;
+                            }
+                        case 'kMaterialPhong8':
+                            {
+                                break;
+                            }
+                    }
+                    // build pair:
+                    // instance - mesh - material - textures
+                    this.appendData(instance, meshPackData);
+                });
+            }
         }
     }
 
-    public forceUpdateSceneManager = () => {
+    public forceInitSceneManager = async () => {
+        const uri = `${this.rootUri}/geotileset.json`;
+        const geoTilesetPack = await fetchGeoTilesetJSON(uri, `geotileset.json`);
+        geoTilesetPack?.rawData.forEach(element => {
+            this.geoTielsetSet.add(element);
+        });
         this.earthManager.updateQuadtreeTileByDistanceError();
     }
 

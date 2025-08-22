@@ -11,7 +11,7 @@ type InstanceDataPack = {
     instances: Instance[],
 }
 
-const fetchJSON = async (uri: string, key: string): Promise<InstanceDataPack | undefined> => {
+const fetchInstanceDescJSON = async (uri: string, key: string): Promise<InstanceDataPack | undefined> => {
     try {
         const response = await fetch(uri);
         if (!response.ok) {
@@ -46,9 +46,29 @@ const fetchJSON = async (uri: string, key: string): Promise<InstanceDataPack | u
     }
 };
 
+const fetchGeoTilesetJSON = async (uri: string, key: string): Promise<{ key: string, rawData: string[] } | undefined> => {
+    try {
+        const response = await fetch(uri);
+        if (!response.ok) {
+            console.log(`[E][fetchJSON] geoTilesetJson load failed, response code: ${response.status}`);
+            return undefined;
+        }
+        const json = await response.json();
+        return {
+            key: key,
+            rawData: json['vaild_tiles'],
+        };
+    }
+    catch (error) {
+        console.log(`[E][fetchJSON] geoTilesetJson failed, error message: ${error}`);
+        return undefined;
+    }
+};
+
 export {
     type Instance,
     type InstanceDataPack,
-    fetchJSON
+    fetchInstanceDescJSON,
+    fetchGeoTilesetJSON
 }
 

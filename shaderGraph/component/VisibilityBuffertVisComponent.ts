@@ -230,7 +230,7 @@ fn fs_main(f: DebugFragment) -> @location(0) vec4 <f32>
     let xy: vec2<u32> = vec2<u32>(x, y);
     let pack_id: u32 = textureLoad(${this.visibilityBufferSnippet.getVariableName()}, xy).r;
     /////////////////////////////////////DEBUG-START///////////////////////////////////////
-    ${this.debugSnippet.getVariableName()}[0].a = f32(pack_id);
+    // ${this.debugSnippet.getVariableName()}[0].a = f32(pack_id);
     /////////////////////////////////////DEBUG-END///////////////////////////////////////
 
     if (pack_id == 0u) {

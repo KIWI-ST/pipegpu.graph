@@ -77,7 +77,7 @@ const initMeshletVisShader = (
     desc.uniforms?.assign(snippets.meshDescSnippet.getVariableName(), earthScene.MeshDescBuffer);
     desc.uniforms?.assign(snippets.instanceOrderSnippet.getVariableName(), earthScene.InstanceOrderBuffer);
 
-    earthScene.forceUpdateSceneManager();
+    earthScene.forceInitSceneManager();
 
     const holder: RenderHolder = compiler.compileRenderHolder(desc);
     return holder;
