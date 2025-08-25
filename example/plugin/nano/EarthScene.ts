@@ -588,7 +588,7 @@ class EarthScene {
         // 支持最大十万级物件渲染
         // indirect 长度无法估计，使用最大 buffer size
         this.indexedIndirectBuffer = this.compiler.createIndexedIndirectBuffer({
-            totalByteLength: this.context.getLimits().maxStorageBufferBindingSize,
+            totalByteLength: 20 * 2560 * 1440, // this.context.getLimits().maxStorageBufferBindingSize
             handler: handler,
         });
     }

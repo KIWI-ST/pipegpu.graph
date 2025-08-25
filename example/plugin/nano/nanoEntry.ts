@@ -7,7 +7,8 @@ import {
     Context,
     Uniforms,
     BaseHolder,
-    ComputeProperty
+    ComputeProperty,
+    Attributes
 } from 'pipegpu';
 
 import * as Cesium from 'cesium'
@@ -167,7 +168,6 @@ const nanoEntry = async (
         const ab: ArrayBuffer = await debugBuffer.PullDataAsync() as ArrayBuffer;
         const f32 = new Float32Array(ab as ArrayBuffer);
         if (debugFrameCount++ % 60 === 0) {
-            // console.log(f32);
             console.warn(`[W] a: ${f32[0]}, b: ${f32[1]}, c: ${f32[2]}, d: ${f32[3]}, e: ${f32[4]}, f: ${f32[5]}, g: ${f32[6]}.`);
         }
     }
@@ -179,7 +179,8 @@ const nanoEntry = async (
             compiler,
             debugSnippet,
             instanceCountAtomicSnippet,
-            meshletCountAtomicSnippet
+            meshletCountAtomicSnippet,
+            triangleCountAtomicSnippet
         );
         const WGSLCode = resetComponent.build();
         const dispatch = new ComputeProperty(1, 1, 1);
@@ -195,7 +196,8 @@ const nanoEntry = async (
         desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
         desc.uniforms?.assign(instanceCountAtomicSnippet.getVariableName(), instanceCountAtomicBuffer);
         desc.uniforms?.assign(meshletCountAtomicSnippet.getVariableName(), meshletCountAtomicBuffer);
-        // holders.push(compiler.compileComputeHolder(desc));
+        desc.uniforms?.assign(triangleCountAtomicSnippet.getVariableName(), triangleCountAtomicBuffer);
+        holders.push(compiler.compileComputeHolder(desc));
     }
 
 
@@ -237,7 +239,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(triangleCountAtomicSnippet.getVariableName(), triangleCountAtomicBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
         desc.uniforms?.assign(runtimeReuseVisibilityIndirectSnippet.getVariableName(), runtimeReuseVisibilityIndirectBuffer);
-        // holders.push(compiler.compileComputeHolder(desc));
+        holders.push(compiler.compileComputeHolder(desc));
     }
 
     // 2. 重设深度值，全图深度改为 1.0
@@ -259,12 +261,13 @@ const nanoEntry = async (
                 entryPoint: 'fs_main'
             }),
             dispatch: dispatch,
+            attributes: new Attributes(),
             uniforms: new Uniforms(),
             colorAttachments: colorAttachments,
             depthStencilAttachment: depthClearAttachment
         };
         desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
-        // holders.push(compiler.compileRenderHolder(desc));
+        holders.push(compiler.compileRenderHolder(desc));
     }
 
     // 3. 重投影深度
@@ -293,6 +296,7 @@ const nanoEntry = async (
                 code: WGSLCode,
                 entryPoint: 'fs_main'
             }),
+            attributes: new Attributes(),
             uniforms: new Uniforms(),
             dispatch: dispatch,
             colorAttachments: colorAttachments,
@@ -306,7 +310,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
         desc.uniforms?.assign(runtimeIndexedStorageSnippet.getVariableName(), runtimeIndexedStorageBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
-        // holders.push(compiler.compileRenderHolder(desc));
+        holders.push(compiler.compileRenderHolder(desc));
     }
 
     // 4. 输入深度，生成 hzb
@@ -358,7 +362,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
         desc.uniforms?.assign(depthTextureSnippet.getVariableName(), depthTexture);
         desc.uniforms?.assign(hzbTextureStorageSnippet.getVariableName(), hzbTextureStorage);
-        // holders.push(compiler.compileComputeHolder(desc));
+        holders.push(compiler.compileComputeHolder(desc));
     }
 
     // 4. 输入深度，生成 hzb
@@ -415,7 +419,7 @@ const nanoEntry = async (
             desc.uniforms?.assign(debugSnippet.getVariableName(), debugBuffer);
             desc.uniforms?.assign(hzbTextureSnippet.getVariableName(), hzbTexture);
             desc.uniforms?.assign(hzbTextureStorageSnippet.getVariableName(), hzbTextureStorage);
-            // holders.push(compiler.compileComputeHolder(desc));
+            holders.push(compiler.compileComputeHolder(desc));
         }
     }
 
@@ -465,7 +469,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(instanceDescSnippet.getVariableName(), instanceDescBuffer);
         desc.uniforms?.assign(instanceOrderSnippet.getVariableName(), instanceOrderBuffer);
         desc.uniforms?.assign(instanceCountAtomicSnippet.getVariableName(), instanceCountAtomicBuffer);
-        // holders.push(compiler.compileComputeHolder(desc));
+        holders.push(compiler.compileComputeHolder(desc));
     }
 
     // 6. 簇剔除
@@ -528,7 +532,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(meshletCountAtomicSnippet.getVariableName(), meshletCountAtomicBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
         desc.uniforms?.assign(hardwareRasterizationIndirectSnippet.getVariableName(), hardwareRasterizationIndirectBuffer);
-        // holders.push(compiler.compileComputeHolder(desc));
+        holders.push(compiler.compileComputeHolder(desc));
     }
 
     // 7. 重置深度，使用 1.0
@@ -551,11 +555,13 @@ const nanoEntry = async (
                 code: WGSLCode,
                 entryPoint: 'fs_main',
             }),
+            attributes: new Attributes(),
+            uniforms: new Uniforms(),
             dispatch: dispatch,
             colorAttachments: colorAttachments,
             depthStencilAttachment: depthClearAttachment
         };
-        // holders.push(compiler.compileRenderHolder(desc));
+        holders.push(compiler.compileRenderHolder(desc));
     }
 
     // 8. 硬件光栅化
@@ -591,6 +597,7 @@ const nanoEntry = async (
                 code: WGSLCode,
                 entryPoint: 'fs_main',
             }),
+            attributes: new Attributes(),
             uniforms: new Uniforms(),
             dispatch: dispatch,
             colorAttachments: [visibilityColorAttachment],
@@ -604,7 +611,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(vertexSnippet.getVariableName(), vertexBuffer);
         desc.uniforms?.assign(staticIndexedStorageSnippet.getVariableName(), staticIndexedStorageBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
-        // holders.push(compiler.compileRenderHolder(desc));
+        holders.push(compiler.compileRenderHolder(desc));
     }
 
     // 9. visbility buffer 可视
@@ -630,6 +637,7 @@ const nanoEntry = async (
                 entryPoint: 'fs_main',
             }),
             dispatch: dispatch,
+            attributes: new Attributes(),
             uniforms: new Uniforms(),
             colorAttachments: colorAttachments,
             depthStencilAttachment: depthStencilAttachment,
@@ -638,7 +646,7 @@ const nanoEntry = async (
         desc.uniforms?.assign(visibilityBufferSnippet.getVariableName(), visibilityBufferTexture);
         desc.uniforms?.assign(viewSnippet.getVariableName(), viewBuffer);
         desc.uniforms?.assign(runtimeMeshletMapSnippet.getVariableName(), runtimeMeshletMapBuffer);
-        // holders.push(compiler.compileRenderHolder(desc));
+        holders.push(compiler.compileRenderHolder(desc));
     }
 
     // 10. 显示物件位置，辅助判断剔除结果是否正确
@@ -666,17 +674,28 @@ const nanoEntry = async (
     // raf
     {
         await earthScene.forceInitSceneManager();
-        // const graph: OrderedGraph = new OrderedGraph(context);
+        const graph: OrderedGraph = new OrderedGraph(context);
+
         const renderLoop = async () => {
             earthScene.updateSceneData();
-            // graph.append(holders);
-            // graph.build();
-            context.refreshFrameResource();
-            const encoder = context.getCommandEncoder();
-            holders.forEach(holder => {
-                holder.build(encoder);
+
+            graph.append(holders);
+            graph.build();
+
+            // context.refreshFrameResource();
+            // const encoder = context.getCommandEncoder();
+            // holders.forEach(holder => {
+            //     holder.build(encoder);
+            // });
+            // context.submitFrameResource();
+
+            let innerHtml = ``;
+            const performanceStats = await graph.getPerformanceStats();
+            performanceStats.forEach(performanceStat => {
+                innerHtml += `  name: ${performanceStat.name}, duration: ${performanceStat.duration / 1000000.0}ms. </br>`
             });
-            context.submitFrameResource();
+            document.getElementById("stats")!.innerHTML = innerHtml;
+
             await debugHandler();
             requestAnimationFrame(renderLoop);
         };

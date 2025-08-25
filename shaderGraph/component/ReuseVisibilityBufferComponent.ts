@@ -14,18 +14,71 @@ import type { IndirectSnippet } from "../snippet/IndirectSnippet";
  * 
  */
 class ReuseVisibilityBufferComponent extends ComputeComponent {
-
+    /**
+     * 
+     */
     debugSnippet: DebugSnippet;
+
+    /**
+     * 
+     */
     visibilityBufferSnippet: VisibilityBufferSnippet;
+
+    /**
+     * 
+     */
     staticIndexedStorageSnippet: IndexedStorageSnippet;
+
+    /**
+     * 
+     */
     dynamicIndexedStorageSnippet: IndexedStorageSnippet;
+
+    /**
+     * 
+     */
     meshDescSnippet: MeshDescSnippet;
+
+    /**
+     * 
+     */
     meshletDescSnippet: MeshletDescSnippet;
+
+    /**
+     * 
+     */
     instanceDescSnippet: InstanceDescSnippet;
+
+    /**
+     * 
+     */
     triangleCountSnippet: StorageAtomicU32Snippet;
+
+    /**
+     * 
+     */
     runtimeMeshletMapSnippet: StorageVec2U32Snippet;
+
+    /**
+     * 
+     */
     indirectSnippet: IndirectSnippet;
 
+    /**
+     * 
+     * @param context 
+     * @param compiler 
+     * @param debugSnippet 
+     * @param visibilityBufferSnippet 
+     * @param staticIndexedStorageSnippet 
+     * @param dynamicIndexedStorageSnippet 
+     * @param meshDescSnippet 
+     * @param meshletDescSnippet 
+     * @param instanceDescSnippet 
+     * @param triangleCountSnippet 
+     * @param runtimeMeshletMapSnippet 
+     * @param indirectSnippet 
+     */
     constructor(
         context: Context,
         compiler: Compiler,
@@ -123,7 +176,10 @@ fn cp_main(@builtin(global_invocation_id) global_index: vec3<u32>)
     // write indirect draw count buffer 
     ${this.indirectSnippet.getVariableName()}[index] = ${this.indirectSnippet.getStructName()}(3, 1, index * 3, instance_id);
 
-
+    /////////////////////////////////////DEBUG-START///////////////////////////////////////
+    // reprojection, read triangle from visibility buffer. regroup to generate indexed buffer.
+    ${this.debugSnippet.getVariableName()}[0].b = f32(index);
+    /////////////////////////////////////DEBUG-END///////////////////////////////////////
 
 }
         `;
